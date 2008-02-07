@@ -1,21 +1,46 @@
-// PALib Template Application
+//Custom header includes
+#include "../header/main.h"
+#include "../header/state.h"
+#include "../header/game_object.h"
+#include "../header/in_game.h"
+#include "../header/splash.h"
+#include "../source/gfx/all_gfx.c"
 
-// Includes
-#include <PA9.h>       // Include for PA_Lib
+using namespace std;
 
-int main()
-{
-	PA_Init();    // Initializes PA_Lib
-	PA_InitVBL(); //// Initializes a standard VBL
+State * mainState;
 
-	PA_InitText(1, 2);
-	PA_OutputSimpleText(1, 1, 2, "Hello World!");
-
-	// Infinite loop to keep the program running
-	while (1)
-	{
-		PA_WaitForVBL();
-	}
+int main(void){
+	//Initialise everything
+	init();
 	
+	while(1)
+	{
+		mainState->run();
+	}
 	return 0;
 }
+
+/**
+Initialise everything
+**/
+void init(void){
+	//Init libs
+	PA_Init();
+	PA_InitVBL();
+	PA_InitSound();  // Init the sound system
+	fatInitDefault(); //Initialise fat library
+	PA_Init8bitBg(0,0); //Init backgrounds
+	PA_Init8bitBg(1,0);
+	
+	mainState = new InGame();
+}
+
+/**
+**Call this to reset entities
+**/
+void reset(){
+	
+}
+
+
