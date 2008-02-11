@@ -21,14 +21,21 @@ class InGame : public State{
 		void init();
 	private:
 		void initGraphics();
+		void initGround();
 		void doCollisions();
 		void processInput();
 		void doDrawing();
+		void renderLandscapeOld();
+		void renderLandscapeNew();
+		void resetLandscape();
+		inline u16 bigger(u16 a,u16 b);
 		inline u32 squared(u32 a);
 		void processHeightMap(char* heightMap);
 		int getNextHeight(string* line);
 		void doUpdates();
 		void print_debug(void);
+		inline s16 getViewPortX();
+		inline s16 getViewPortY();
 
 };
 #endif
