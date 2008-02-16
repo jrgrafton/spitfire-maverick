@@ -18,7 +18,7 @@
 
 
 // Sprite files : 
-extern const unsigned char plane_Sprite[1024] __attribute__ ((aligned (4))) ;  // Pal : plane_Pal
+extern const unsigned char plane_image_Sprite[1024] __attribute__ ((aligned (4))) ;  // Pal : plane_image_Pal
 extern const unsigned char black_image_Sprite[256] __attribute__ ((aligned (4))) ;  // Pal : grass_image_Pal
 extern const unsigned char grass0_image_Sprite[256] __attribute__ ((aligned (4))) ;  // Pal : grass_image_Pal
 extern const unsigned char grass2a_image_Sprite[256] __attribute__ ((aligned (4))) ;  // Pal : grass_image_Pal
@@ -50,10 +50,16 @@ extern const unsigned char grass24a_image_Sprite[256] __attribute__ ((aligned (4
 extern const unsigned char grass24b_image_Sprite[256] __attribute__ ((aligned (4))) ;  // Pal : grass_image_Pal
 extern const unsigned char grass24c_image_Sprite[256] __attribute__ ((aligned (4))) ;  // Pal : grass_image_Pal
 
-// Palette files : 
-extern const unsigned short grass_image_Pal[80] __attribute__ ((aligned (4))) ;
-extern const unsigned short plane_Pal[152] __attribute__ ((aligned (4))) ;
+// Background files : 
+extern const int background_image_Info[3]; // BgMode, Width, Height
+extern const unsigned short background_image_Map[768] __attribute__ ((aligned (4))) ;  // Pal : background_image_Pal
+extern const unsigned char background_image_Tiles[49152] __attribute__ ((aligned (4))) ;  // Pal : background_image_Pal
+extern PAGfx_struct background_image; // background pointer
 
+// Palette files : 
+extern const unsigned short plane_image_Pal[138] __attribute__ ((aligned (4))) ;
+extern const unsigned short grass_image_Pal[80] __attribute__ ((aligned (4))) ;
+extern const unsigned short background_image_Pal[66] __attribute__ ((aligned (4))) ;
 
 #endif
 

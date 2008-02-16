@@ -1,4 +1,4 @@
-//Internal headers
+//internal headers
 #include "../header/main.h"
 #include "../header/game_object.h"
 #include "../header/state.h"
@@ -15,6 +15,7 @@ u16 inGame = 0;
 string* levelTitle;
 vector<u16> heightMap;
 u16 levelWidth;
+u16 levelHeight;
 
 //Sprite pool of available indexes
 vector<u16> spritePool;
@@ -30,9 +31,16 @@ s32 viewporty =0;
 u16 grassTiles[13][4];
 u16 blackTile;
 
+//Track background scrolling
+s32 bgscroll=0;
+
 //Represents bottom middle of the plane
 GameObject* plane;
 
+s16 tipx=0;
+s16 tipy=0;
+
+u16 actualHeight =0;
 /**
 **InGame constructor
 **/
@@ -50,10 +58,10 @@ InGame::~InGame(){
 }
 
 inline s16 InGame::getViewPortX(){
-	return viewportx>>8;
+	return viewportx/255;
 }
 inline s16 InGame::getViewPortY(){
-	return viewporty>>8;
+	return viewporty/255;
 }
 /**
 **InGame init allocate resources
@@ -62,19 +70,21 @@ void InGame::init(){
 	myName = INGAME;
 	
 	//Set the virtual distance in screen to SCREENHOLE
-	PA_SetScreenSpace(SCREENHOLE);
+	//PA_SetScreenSpace(SCREENHOLE);
 	
 	//Load game objects
 	//Startx starty width height spriteindex
 	//Index is after last grasstile
-	plane = new GameObject(128<<8,30<<8,32,32,0);
+	//Plane position is stored as bottom middle of plane
+	plane = new GameObject(128<<8,90<<8,32,32,0);
+	plane->speed=1<<8;
 
 	//Load palattes
-	PA_LoadSpritePal (0, 0, (void*)plane_Pal);
+	PA_LoadSpritePal(0, 0, (void*)plane_image_Pal);
 	PA_LoadSpritePal(0,1,(void*)grass_image_Pal);
 
 	//Load plane sprite
-	PA_CreateSprite(0, plane->spriteIndex, (void*)plane_Sprite,OBJ_SIZE_32X32, 1, 0, plane->getX()-16, plane->getY()-32);
+	PA_CreateSprite(0, plane->spriteIndex, (void*)plane_image_Sprite,OBJ_SIZE_32X32, 1, 0, plane->getX()-16, plane->getY()-32);
 
 	//Enable rotation for plane
 	PA_SetSpriteRotEnable(0,0,0);
@@ -93,7 +103,9 @@ void InGame::initGraphics(){
 		PA_InitText(1,0); // On the top screen
 		PA_SetTextCol(1,31,31,31);
 	#endif
-	PA_SetBgPalCol(0, 2, PA_RGB(31, 31, 31));
+	PA_SetBgPalCol(0, 2, PA_RGB(31, 0, 0));
+	PA_SetBgPalCol(0, 3, PA_RGB(0, 31, 0));
+	PA_SetBgPalCol(0, 4, PA_RGB(31, 31, 31));
 	
 	#ifndef EMULATOR 
 		FILE* testRead = fopen ("/development/spitfire_maverick/test.txt", "rb"); //rb = read
@@ -107,7 +119,6 @@ void InGame::initGraphics(){
 			processHeightMap(filetext);
 		}
 		fclose(testRead);
-		levelWidth = (heightMap.size()-1)*16;
 	#else
 		levelTitle = new string("test level");
 		heightMap.push_back(SHEIGHT-20);
@@ -210,9 +221,16 @@ void InGame::initGraphics(){
 		heightMap.push_back(SHEIGHT-42);
 		heightMap.push_back(SHEIGHT-40);
 		heightMap.push_back(SHEIGHT-20);
-		levelWidth=1500;
+		heightMap.push_back(SHEIGHT-44);
 	#endif
 	
+	levelWidth = (heightMap.size()-2)*16;
+	levelHeight = (u16)(SHEIGHT*1.5);
+
+	//Init background
+	PA_EasyBgLoad(0, 0, background_image);
+	
+	//Init ground
 	initGround();
 
 	//Reset everything
@@ -337,94 +355,102 @@ void InGame::run(){
 Process input function
 **/
 void InGame::processInput(void){
-	if(Pad.Held.Left){
-		if(plane->speed>0){plane->speed-=(20);}
+	if(Pad.Held.Left&&plane->getSpeed()>0){
+		plane->speed-=5;
 	}
-	else if(Pad.Held.Right){
-		if(plane->getSpeed()<10){plane->speed+=(20);}
+	else if(Pad.Held.Right&&plane->getSpeed()<3){
+		plane->speed+=5;
 	}
 	
-	else if(Pad.Newpress.Up){
-		//viewporty--;
-		plane->angle = (plane->angle==0)? 256:0;
+	else if(Pad.Held.Up){
+		plane->angle+=(s32)(plane->speed*1.2);
+		if(plane->getAngle()>511){plane->angle=0;}
 	}
-	//else if(Pad.Held.Up){
-	//	viewporty++;
-	//}
+	else if(Pad.Held.Down){
+		plane->angle-=(s32)(plane->speed*1.2);
+		if(plane->getAngle()<0){plane->angle=511<<8;}
+	}
 }
 
 /**
 ** Update plane location and viewport
 **/
 void InGame::doUpdates(){
-	u16 angle = plane->angle;
+	u16 angle = plane->getAngle();
 
 	plane->vx = PA_Cos(angle);
 	plane->vy = -PA_Sin(angle);
 
-	s16 flipped = (plane->angle==0)? 1:-1;
+	s16 xflipped = (angle>128&&angle<384)? -1:1;
+	s16 yflipped = (angle<256)? -1:1;
 
-	plane->x += ((abs(plane->vx)*plane->speed)>>8)*flipped;
-	//TODO plane->y
-	
-	
+	plane->x += ((abs(plane->vx)*plane->speed)>>8)*xflipped;
+	plane->y += ((abs(plane->vy)*plane->speed)>>8)*yflipped;
 	
 	//Viewport calculations using simulated float accuracy
-	viewportx = (plane->x-((SWIDTH/2)<<8));
+	viewportx = (plane->x-((SWIDTH/2)<<8));//+((squared(plane->speed)*plane->vx)>>14);
+	viewporty = (plane->y-((SHEIGHT/2)<<8));
 		
-	//+((squared(plane->speed)/80)*flipped);
+	//((squared(plane->speed)/80)*yflipped);
+
 	if(getViewPortX()<0)viewportx=0;
 	if(getViewPortX()+SWIDTH>levelWidth)viewportx=(levelWidth-SWIDTH)<<8;
 
+	if(getViewPortY()<SHEIGHT-levelHeight)viewporty=((SHEIGHT-levelHeight)<<8);
+	if(getViewPortY()>0)viewporty=0;
+	
+	//Scroll background
+	if(getViewPortX()>0&&getViewPortX()+SWIDTH<levelWidth){
+		bgscroll+=((((abs(plane->vx)*plane->speed)>>8))/4*xflipped);
+		PA_BGScrollX(0,0,bgscroll>>8);
+	}
+
 	//Rotate plane
-	//PA_SetRotsetNoZoom(0, 0, plane->angle);
+	PA_SetRotsetNoZoom(0, 0, angle);
+
+	//If the plane is going to be completely rendered above the y threshold reflect its current angle
+	if(plane->getY()-16<(SHEIGHT-levelHeight)-50){
+		u16 currentAngle = plane->getAngle();
+		s16 diff = 128 - currentAngle;		//Get diff from Y axis
+		u16 reflected = 384+diff;			//And reflect :)
+		plane->angle=reflected<<8;
+	}
+
+	//If the plane is going to be completely off the x axis the reflect its current angle
+	if(plane->getX()-16<-50){
+		u16 currentAngle = plane->getAngle();
+		s16 diff = 256 - currentAngle;		//Get diff from X axis
+		s16 reflected = 0+diff;			//And reflect :)
+		if(reflected<0)reflected+=512;
+		plane->angle=reflected<<8;
+	}
+
+	else if(plane->getX()-16>levelWidth+18){
+		u16 currentAngle = plane->getAngle();
+		s16 diff = 0 - currentAngle;		//Get diff from Y axis
+		u16 reflected = 256+diff;			//And reflect :)
+		plane->angle=reflected<<8;
+	}
 }
 /**
 Do drawing function
 **/
 void InGame::doDrawing(void){
 	PA_Clear8bitBg(0);
+	//PA_Draw8bitLineEx(0, tipx-getViewPortX(), 0, tipx-getViewPortX(), SHEIGHT,2,2);
+	//PA_Draw8bitLineEx(0, 0, tipy-getViewPortY(), SWIDTH,tipy-getViewPortY(),3,2);
+	//PA_Draw8bitLineEx(0, tipx-getViewPortX(),SHEIGHT ,tipx-getViewPortX(),actualHeight ,4,2);
 
 	//Draw plane
 	s32 planeoffsetx = (-getViewPortX())-16;
-	s32 planeoffsety = -16;
+	s32 planeoffsety = (-getViewPortY())-18;
 
 	PA_SetSpriteXY(0,plane->spriteIndex, plane->getX()+planeoffsetx, plane->getY()+planeoffsety);
 
 	//Render landscape
-	renderLandscapeNew();
+	renderLandscape();
 }	
-
-/**
-Render Landscape
-**/
-void InGame::renderLandscapeOld(){
-	
-	//Reset old landscape before rendering new one
-
-
-	vector<u16>::iterator it;
-
-	it = heightMap.begin();
-	s16 linex =1-getViewPortX();
-	s16 lasty = 0;
-	u16 started=0;
-	while( it != heightMap.end()-1) {
-		u16 value = *it;
-		value+=viewporty;
-		if(linex>-16){
-			//Horizontal
-			//Vertical
-			if(linex<254)PA_Draw8bitLineEx(0,linex,SHEIGHT,linex,value,2,2);
-		}
-		linex+=16;
-		lasty=value;
-		started=1;
-		it++;
-	}
-}
-
-void InGame::renderLandscapeNew(){
+void InGame::renderLandscape(){
 	
 	//Reset old landscape before rendering new one
 	resetLandscape();
@@ -435,13 +461,14 @@ void InGame::renderLandscapeNew(){
 
 	s16 x =0-getViewPortX();
 	while( it != heightMap.end()-1) {
-		if(x>-16&&x<254){
-			u16 thisHeight = (*it)+=viewporty;
-			u16 nextHeight = (*(it+1))+=viewporty;
-			u8 spriteIndex = abs(thisHeight-nextHeight)/2;
-			u16 y = bigger(thisHeight,nextHeight);		   //Get height
+		u16 thisHeight = (*it);
+		u16 nextHeight = (*(it+1));
+		u8 spriteIndex = abs(thisHeight-nextHeight)/2;
+		u16 y = taller(thisHeight,nextHeight);		   //Get height
+		y-=getViewPortY();
+		
+		if(x>-16&&x<256&&y<SHEIGHT){		//Draw if tile on screen
 			u16 flipped = (thisHeight>nextHeight)?0:1;	   //Get flipped
-
 			u16 length = grassTiles[spriteIndex][0];
 			for(u16 i =1;i<length;i++){
 				u16 availableIndex = spritePool.back();
@@ -451,13 +478,16 @@ void InGame::renderLandscapeNew(){
 				PA_SetSpriteHflip(0, availableIndex, flipped); // (screen, sprite, flip(1)/unflip(0)) HFlip -> Horizontal flip
 				//Add index to list used by landscape
 				landscapeIndexs.push_back(availableIndex);
+				//PA_SetSpritePrio(0,availableIndex,1);
 				y+=16;
+				if(y>SHEIGHT)break;
 			}
-			while(y<SHEIGHT){
+			while(y<=SHEIGHT){
 				u16 availableIndex = spritePool.back();
 				spritePool.pop_back();					//Get available index
 				PA_CreateSpriteFromGfx(0,availableIndex,blackTile,OBJ_SIZE_16X16, 1, 1, x,y);
 				landscapeIndexs.push_back(availableIndex);
+				//PA_SetSpritePrio(0,availableIndex,1);
 				y+=16;
 			}
 		}
@@ -481,19 +511,52 @@ void InGame::resetLandscape(){
 }
 
 /**
-** inline bigger function
+** inline taller function
 **/
-u16 InGame::bigger(u16 a,u16 b){
+u16 InGame::taller(u16 a,u16 b){
 	return(a<b)? a:b;
+}
+
+/**
+** inline smaller function
+**/
+u16 InGame::smaller(u16 a,u16 b){
+	return(a>b)? a:b;
 }
 
 /**
 Do collisions function
 **/
-void InGame::doCollisions(void){
+void InGame::doCollisions(){
+	tipx = plane->getX()+((plane->vx*16)>>8);
+	tipy = plane->getY()+((plane->vy*16)>>8);
 
+	s16 landIndex = (tipx/16);
+
+	if((u16)landIndex>heightMap.size()-2||landIndex<0){return;}
+	
+	u16 a = heightMap.at(landIndex);
+	u16 b = heightMap.at(landIndex+1);
+
+	float diff = (tipx &15)/16.0f;
+
+	
+	actualHeight = (u16)(a+(diff*(b-a)))-getViewPortY();
+
+	if(tipy>actualHeight){
+		planeCrash();
+	}
 }
 
+
+/**
+**
+**/
+void InGame::planeCrash(){
+	delete plane;
+	plane = new GameObject(128<<8,60<<8,32,32,0);
+	plane->speed=1<<8;
+}
 /**
 ** Inline squared function
 **/
@@ -506,12 +569,13 @@ wanna print to screen
 void InGame::print_debug(void){
 	PA_ClearTextBg(1);
 	PA_OutputText(1,0, 0, "Title is: %s", levelTitle->c_str());
-	PA_OutputText(1,0, 1, "Viewport x:%d (%d) y:%d (%d)", viewportx,getViewPortX(),viewporty,getViewPortY());
-	PA_OutputText(1,0, 2, "Plane x:%d (%d) y:%d (%d)", plane->x,plane->getX(),plane->y,plane->getY());
+	PA_OutputText(1,0, 1, "Viewport x:%d (%d) y:%d (%d)", getViewPortX(),viewportx,getViewPortY(),viewporty);
+	PA_OutputText(1,0, 2, "Plane x:%d (%d) y:%d (%d)", plane->getX(),plane->x,plane->getY(),plane->y);
 	PA_OutputText(1,0, 3, "Plane vx:%d vy:%d", plane->vx,plane->vy);
 	PA_OutputText(1,0, 4, "Plane speed:%d (%d)", plane->getSpeed(),plane->speed);
-	PA_OutputText(1,0, 5, "Plane angle:%d", plane->angle);
+	PA_OutputText(1,0, 5, "Plane angle:%d (%d)", plane->getAngle(),plane->angle);
 	PA_OutputText(1,0, 6, "Landscape sprites used:%d", landscapeIndexs.size());
 	PA_OutputText(1,0, 7, "Available sprites:%d", spritePool.size());
+	PA_OutputText(1,0, 8, "Background scroll:%d (%d)", bgscroll>>8,bgscroll);
 	//Put your debug print statements here.... make sure to print to screen 1
 }

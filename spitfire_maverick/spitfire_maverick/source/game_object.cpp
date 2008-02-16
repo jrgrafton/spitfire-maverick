@@ -13,6 +13,10 @@ u16 GameObject::getSpeed(){
 	return speed>>8;
 }
 
+s32 GameObject::getAngle(){
+	return angle>>8;
+}
+
 GameObject::GameObject(s32 startx,s32 starty,u16 width,u16 height,s16 spriteIndex){
 	this->x=startx;
 	this->y=starty;

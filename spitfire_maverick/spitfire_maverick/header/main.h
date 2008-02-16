@@ -17,7 +17,7 @@ using namespace::std;
 
 //Const definitions
 #define DEBUG				//Comment out to turn off debug mode
-//#define EMULATOR			//Are we compiling for emulator?
+#define EMULATOR			//Are we compiling for emulator?
 void init(void);
 void reset();
 

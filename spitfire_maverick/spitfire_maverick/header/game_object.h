@@ -7,7 +7,7 @@ class GameObject{
 		s32 x, y; //s32 position >>8 allows for fp emulation
 		s16 vx, vy; // xy trajectory
 		u32 speed;
-		u16 angle;
+		s32 angle;
 		s16 spriteIndex;
 		u16 width, height; //Dimensions in pixels
 
@@ -16,6 +16,7 @@ class GameObject{
 		s16 getY();
 
 		u16 getSpeed();
+		s32 getAngle();
 
 		//Image for this sprite
 		//void* myImage;
