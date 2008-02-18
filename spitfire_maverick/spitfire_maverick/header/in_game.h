@@ -22,21 +22,35 @@ class InGame : public State{
 	private:
 		void initGraphics();
 		void initGround();
+		void processHeightMap(char* fileLine,vector<u16>* heightMap);
+		int addNextHeight(string* line,vector<u16>* heightMap);
+		
 		void doCollisions();
+		int landscapeCollision(s16 x,s16 y);
+		void planeLandscapeCollision();
+
 		void processInput();
+		void addPlayerBullet();
+		
 		void doDrawing();
-		void renderLandscape();
+		void drawLandscape();
 		void resetLandscape();
+		void drawProjectiles();
+		void drawPlane();
+		
 		inline u16 taller(u16 a,u16 b);
 		inline u16 smaller(u16 a,u16 b);
 		inline u32 squared(u32 a);
-		void processHeightMap(char* heightMap);
-		int getNextHeight(string* line);
-		void doUpdates();
-		void print_debug(void);
 		inline s16 getViewPortX();
 		inline s16 getViewPortY();
+
+		void doUpdates();
+		void updatePlane();
+		void updateViewport();
+		void updateProjectiles();
+
 		void planeCrash();
 
+		void print_debug(void);
 };
 #endif
