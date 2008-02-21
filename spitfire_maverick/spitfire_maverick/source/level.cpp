@@ -10,4 +10,5 @@ Level::Level(u16 levelWidth,u16 levelHeight,string *levelTitle,vector<u16>* heig
 
 Level::~Level(){
 	delete heightMap;
+	delete levelTitle;
 }

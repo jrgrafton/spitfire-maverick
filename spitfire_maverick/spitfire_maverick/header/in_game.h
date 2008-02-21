@@ -10,6 +10,19 @@ const u16 SCREENHOLE =48;	//How big percieved hole between screens is
 const u16 SHEIGHT = 191;
 const u16 SWIDTH = 255;
 
+//Defines friction (number subtracted from plane speed every update)
+const u16 FRICTION = 2;
+
+//Defines gravity (number subtracted from gameobject yvel every update)
+const u16 GRAVITY = 5;
+
+//MIN MAX speed for plane
+const u16 MAXSPEED = 700;
+const u16 MINSPEED = 400;
+
+//LUT size needs to be 300*300 since taking into account max vx and vy plus gravity
+const u32 LUTSIZE = 300*300;
+
 class InGame : public State{
 	public:
 		InGame();
@@ -21,7 +34,8 @@ class InGame : public State{
 		void init();
 	private:
 		void initGraphics();
-		void initGround();
+		void initSound();
+		void initLevel();
 		void processHeightMap(char* fileLine,vector<u16>* heightMap);
 		int addNextHeight(string* line,vector<u16>* heightMap);
 		
@@ -31,6 +45,7 @@ class InGame : public State{
 
 		void processInput();
 		void addPlayerBullet();
+		void addPlayerBomb();
 		
 		void doDrawing();
 		void drawLandscape();
@@ -40,12 +55,13 @@ class InGame : public State{
 		
 		inline u16 taller(u16 a,u16 b);
 		inline u16 smaller(u16 a,u16 b);
-		inline u32 squared(u32 a);
+		inline u32 squared(s32 a);
 		inline s16 getViewPortX();
 		inline s16 getViewPortY();
 
 		void doUpdates();
 		void updatePlane();
+		u16 getSpeedFromVelocity(s16 vx,s16 vy);
 		void updateViewport();
 		void updateProjectiles();
 

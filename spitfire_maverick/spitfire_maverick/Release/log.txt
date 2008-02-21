@@ -1,0 +1,5 @@
+K:\DEVELOPMENT\DS\devkitPro\My_Projects\spitfire_maverick\spitfire_maverick\Release\spitfire_maverick.nds
+K:\DEVELOPMENT\DS\devkitPro\My_Projects\spitfire_maverick\spitfire_maverick\Release\spitfire_maverick.nds
+instruction non def
+instruction non def
+K:\DEVELOPMENT\DS\devkitPro\My_Projects\spitfire_maverick\spitfire_maverick\Release\spitfire_maverick.sc.nds

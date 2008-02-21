@@ -3,7 +3,7 @@
 #include "../header/plane_object.h"
 
 PlaneObject::PlaneObject(s32 startx,s32 starty,u16 width,u16 height,s16 spriteIndex,s32 angle,u32 speed,u16 fireDelay):
-	GameObject(startx,starty,width,height,spriteIndex,angle,speed){
+	GameObject(new string("player_plane"),startx,starty,width,height,spriteIndex,angle,speed){
 
 	this->timeSinceFired=0;
 	this->fireDelay=fireDelay;

@@ -17,12 +17,13 @@ s32 GameObject::getAngle(){
 	return angle>>8;
 }
 
-GameObject::GameObject(s32 startx,s32 starty,u16 width,u16 height,s16 spriteIndex,s32 angle,u32 speed){
+GameObject::GameObject(string* name,s32 startx,s32 starty,u16 width,u16 height,s16 spriteIndex,s32 angle,u32 speed){
 	this->x=startx;
 	this->y=starty;
 	this->width=width;
 	this->height=height;
 	this->spriteIndex=spriteIndex;
+	this->name=name;
 
 	this->vx = PA_Cos(angle>>8);
 	this->vy = -PA_Sin(angle>>8);

@@ -29,6 +29,7 @@ void init(void){
 	PA_Init();
 	PA_InitVBL();
 	PA_InitSound();  // Init the sound system
+	PA_InitRand();	//Init rand
 	fatInitDefault(); //Initialise fat library
 	PA_Init8bitBg(0,0); //Init backgrounds
 	PA_Init8bitBg(1,0);
