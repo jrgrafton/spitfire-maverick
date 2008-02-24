@@ -14,14 +14,19 @@ const u16 SWIDTH = 255;
 const u16 FRICTION = 2;
 
 //Defines gravity (number subtracted from gameobject yvel every update)
-const u16 GRAVITY = 5;
-
-//MIN MAX speed for plane
-const u16 MAXSPEED = 700;
-const u16 MINSPEED = 400;
+const u16 GRAVITY = 12;
 
 //LUT size needs to be 300*300 since taking into account max vx and vy plus gravity
-const u32 LUTSIZE = 300*300;
+const u32 LUTSIZE = 700*700;
+
+//Plane defines
+const u16 PLANEPOWER=5;
+const u16 PLANETURNSPEED=600;
+const u16 MAXPLANESPEED = 600;
+const u16 MINPLANESPEED = 300;
+
+//Runway lenth is always constant (has to be multiple of 64)
+const u16 RUNWAYLENGTH = 192;
 
 class InGame : public State{
 	public:
@@ -42,6 +47,7 @@ class InGame : public State{
 		void doCollisions();
 		int landscapeCollision(s16 x,s16 y);
 		void planeLandscapeCollision();
+		u16 getHeightAtPoint(u16 x);
 
 		void processInput();
 		void addPlayerBullet();
@@ -52,6 +58,7 @@ class InGame : public State{
 		void resetLandscape();
 		void drawProjectiles();
 		void drawPlane();
+		void drawRunwway();
 		
 		inline u16 taller(u16 a,u16 b);
 		inline u16 smaller(u16 a,u16 b);

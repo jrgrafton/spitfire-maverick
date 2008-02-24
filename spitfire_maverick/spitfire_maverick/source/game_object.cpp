@@ -17,7 +17,7 @@ s32 GameObject::getAngle(){
 	return angle>>8;
 }
 
-GameObject::GameObject(string* name,s32 startx,s32 starty,u16 width,u16 height,s16 spriteIndex,s32 angle,u32 speed){
+GameObject::GameObject(string* name,s32 startx,s32 starty,u16 width,u16 height,s16 spriteIndex,u16 gfxref,s32 angle,s16 vx,s16 vy){
 	this->x=startx;
 	this->y=starty;
 	this->width=width;
@@ -25,10 +25,10 @@ GameObject::GameObject(string* name,s32 startx,s32 starty,u16 width,u16 height,s
 	this->spriteIndex=spriteIndex;
 	this->name=name;
 
-	this->vx = PA_Cos(angle>>8);
-	this->vy = -PA_Sin(angle>>8);
-	this->speed=speed;
+	this->vx = vx;
+	this->vy = vy;
 	this->angle =angle;//Same as 90 therefore heading -->
+	this->gfxref=gfxref;
 }
 
 GameObject::~GameObject(){

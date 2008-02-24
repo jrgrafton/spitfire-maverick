@@ -37,6 +37,9 @@ extern const unsigned char grass22a_image_Sprite[512] __attribute__ ((aligned (4
 extern const unsigned char grass22b_image_Sprite[512] __attribute__ ((aligned (4))) ;  // Pal : grass_Pal
 extern const unsigned char grass24a_image_Sprite[512] __attribute__ ((aligned (4))) ;  // Pal : grass_Pal
 extern const unsigned char grass24b_image_Sprite[512] __attribute__ ((aligned (4))) ;  // Pal : grass_Pal
+extern const unsigned char runway_image_Sprite[2048] __attribute__ ((aligned (4))) ;  // Pal : runway_image_Pal
+extern const unsigned char runway_tower_image_Sprite[2048] __attribute__ ((aligned (4))) ;  // Pal : runway_image_Pal
+extern const unsigned char spitfire_image_Sprite[13312] __attribute__ ((aligned (4))) ;  // Pal : spitfire_image_Pal
 
 // Background files : 
 extern const int background_image_Info[3]; // BgMode, Width, Height
@@ -48,6 +51,8 @@ extern PAGfx_struct background_image; // background pointer
 extern const unsigned short plane_image_Pal[138] __attribute__ ((aligned (4))) ;
 extern const unsigned short background_image_Pal[66] __attribute__ ((aligned (4))) ;
 extern const unsigned short grass_image_Pal[80] __attribute__ ((aligned (4))) ;
+extern const unsigned short runway_image_Pal[93] __attribute__ ((aligned (4))) ;
+extern const unsigned short spitfire_image_Pal[250] __attribute__ ((aligned (4))) ;
 
 #endif
 

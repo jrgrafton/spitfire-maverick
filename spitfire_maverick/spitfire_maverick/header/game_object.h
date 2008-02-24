@@ -9,13 +9,14 @@ class GameObject{
 		s16 spriteIndex;
 		u16 width, height; //Dimensions in pixels
 		s32 angle;
+		u16 gfxref;
 
 		//Functions
 		s16 getX();
 		s16 getY();
 		s32 getAngle();
 
-		GameObject(string* name,s32 startx,s32 starty,u16 width,u16 height,s16 spriteIndex,s32 angle,u32 speed);
+		GameObject(string* name,s32 startx,s32 starty,u16 width,u16 height,s16 spriteIndex,u16 gfxref,s32 angle,s16 vx, s16 vy);
 		~GameObject();
         
 		//Stuff thats just for dynamic objects
