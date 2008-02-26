@@ -10,23 +10,23 @@ const u16 SCREENHOLE =48;	//How big percieved hole between screens is
 const u16 SHEIGHT = 191;
 const u16 SWIDTH = 255;
 
-//Defines friction (number subtracted from plane speed every update)
-const u16 FRICTION = 2;
+//Defines friction to apply multiply by FRICTION then >>16 (65536)
+const u32 FRICTION = 65500;
 
 //Defines gravity (number subtracted from gameobject yvel every update)
-const u16 GRAVITY = 12;
+const u16 GRAVITY = 8;
 
 //LUT size needs to be 300*300 since taking into account max vx and vy plus gravity
 const u32 LUTSIZE = 700*700;
 
 //Plane defines
-const u16 PLANEPOWER=5;
+const u16 PLANEPOWER=2;
 const u16 PLANETURNSPEED=600;
-const u16 MAXPLANESPEED = 600;
-const u16 MINPLANESPEED = 300;
+const u16 MAXPLANESPEED = 550;
+const u16 MINPLANESPEED = 250;
 
 //Runway lenth is always constant (has to be multiple of 64)
-const u16 RUNWAYLENGTH = 192;
+const u16 RUNWAYLENGTH = 172;
 
 class InGame : public State{
 	public:
@@ -41,12 +41,13 @@ class InGame : public State{
 		void initGraphics();
 		void initSound();
 		void initLevel();
+		void initPlane();
 		void processHeightMap(char* fileLine,vector<u16>* heightMap);
 		int addNextHeight(string* line,vector<u16>* heightMap);
 		
 		void doCollisions();
 		int landscapeCollision(s16 x,s16 y);
-		void planeLandscapeCollision();
+		u16 planeLandscapeCollision();
 		u16 getHeightAtPoint(u16 x);
 
 		void processInput();
@@ -58,7 +59,7 @@ class InGame : public State{
 		void resetLandscape();
 		void drawProjectiles();
 		void drawPlane();
-		void drawRunwway();
+		void drawRunway();
 		
 		inline u16 taller(u16 a,u16 b);
 		inline u16 smaller(u16 a,u16 b);

@@ -6,9 +6,11 @@ PlaneObject::PlaneObject(s32 startx,s32 starty,u16 width,u16 height,s16 spriteIn
 	GameObject(new string("player_plane"),startx,starty,width,height,spriteIndex,gfxref,angle,vx,vy){
 
 	this->timeSinceFired=0;
+	this->speed=0;
 	this->fireDelay=fireDelay;
 	this->throttleOn=0;
 	this->onRunway=1;
+	this->takingOff=0;
 }
 
 PlaneObject::~PlaneObject(){

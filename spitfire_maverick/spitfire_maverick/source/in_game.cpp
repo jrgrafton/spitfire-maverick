@@ -54,11 +54,12 @@ s32 bgscroll=0;
 //Represents bottom middle of the plane
 PlaneObject* plane;
 
-//Represents runway
+//Represents runway (needs to be part of level object)
 u16 runwayStart;
 u16 runwayEnd;
-u16 runwaygfx;
+u16 runwayHeight;
 vector<GameObject*> runwayObjects;
+
 
 //Do lookups if final game runs too slow!
 #ifndef DEBUG
@@ -100,23 +101,6 @@ void InGame::init(){
 		sqrtLUT[i] = (u16)sqrt(i);
 	}
 	#endif
-	
-	//Load game objects
-	//Startx starty width height spriteindex gfxindex startangle vx vy firedelay
-	//x and y are always top left of sprite
-	u16 plane_gfx = PA_CreateGfx(0, (void*)spitfire_image_Sprite, OBJ_SIZE_32X32, 1);
-	plane = new PlaneObject(128<<8,50<<8,32,8,0,plane_gfx,0,MINPLANESPEED,0,9);
-
-	//Load palattes
-	PA_LoadSpritePal(0, 0, (void*)spitfire_image_Pal);
-	PA_LoadSpritePal(0,1,(void*)grass_image_Pal);
-	PA_LoadSpritePal(0,2,(void*)runway_image_Pal);
-
-	//Load plane sprite
-	PA_CreateSpriteFromGfx(0, plane->spriteIndex,plane->gfxref,OBJ_SIZE_32X32, 1, 0, plane->getX()-16, plane->getY()-32);
-
-	//Enable rotation for plane
-	PA_SetSpriteRotEnable(0,0,0);
 
 	//Populate sprite index pool
 	//0 reserved for plane
@@ -129,6 +113,9 @@ void InGame::init(){
 
 	//Init level
 	initLevel();
+
+	//Init plane
+	initPlane();
 
 	//Init sound
 	initSound();
@@ -214,18 +201,6 @@ void InGame::initLevel(){
 		//Title
 		string* levelTitle = new string("test level");
 
-		//Runway
-		runwayStart = 208;
-		runwayEnd = runwayStart+RUNWAYLENGTH;
-		runwaygfx = PA_CreateGfx(1, (void*)runway_image_Sprite, OBJ_SIZE_64X32, 1);
-		//Fill up runway vector with gameobects (need to do this to track used sprite indexes)
-		for(u16 x = 208;x<=runwayEnd;x+=64){
-			u16 y = getHeightAtPoint(x);
-			//Runway parts dont start with sprite
-			GameObject * runwayPart = new GameObject(new string("runway"),x<<8,y<<8,64,32,-1,runwaygfx,0,0,0);
-			runwayObjects.push_back(runwayPart);
-		}
-		
 		//Height map
 		vector<u16>* heightMap = new vector<u16>();
 		heightMap->push_back(SHEIGHT-20);
@@ -274,19 +249,6 @@ void InGame::initLevel(){
 		heightMap->push_back(SHEIGHT-20);
 		heightMap->push_back(SHEIGHT-24);
 		heightMap->push_back(SHEIGHT-30);
-		heightMap->push_back(SHEIGHT-34);
-		heightMap->push_back(SHEIGHT-56);
-		heightMap->push_back(SHEIGHT-78);
-		heightMap->push_back(SHEIGHT-90);
-		heightMap->push_back(SHEIGHT-100);
-		heightMap->push_back(SHEIGHT-96);
-		heightMap->push_back(SHEIGHT-80);
-		heightMap->push_back(SHEIGHT-78);
-		heightMap->push_back(SHEIGHT-60);
-		heightMap->push_back(SHEIGHT-54);
-		heightMap->push_back(SHEIGHT-56);
-		heightMap->push_back(SHEIGHT-58);
-		heightMap->push_back(SHEIGHT-50);
 		heightMap->push_back(SHEIGHT-44);
 		heightMap->push_back(SHEIGHT-42);
 		heightMap->push_back(SHEIGHT-40);
@@ -353,14 +315,52 @@ void InGame::initLevel(){
 		heightMap->push_back(SHEIGHT-20);
 		heightMap->push_back(SHEIGHT-44);
 		heightMap->push_back(SHEIGHT-10);
+
+		u16 levelWidth = (heightMap->size()-2)*16;
+		u16 levelHeight = (u16)(SHEIGHT*1.5);
+	
+		//Init level with full heightmap
+		currentLevel = new Level(levelWidth,levelHeight,levelTitle,heightMap);
+
+		//Runway has to go after heightmap since needs to know heights at specific points
+		runwayStart = 208;
+		runwayEnd = runwayStart+RUNWAYLENGTH;
+		s16 runwaygfx = PA_CreateGfx(0, (void*)runway_image_Sprite, OBJ_SIZE_64X32, 1);
+		//Fill up runway vector with gameobects (need to do this to track used sprite indexes)
+		for(u16 x = runwayStart;x<runwayEnd;x+=64){
+			runwayHeight = getHeightAtPoint(x)-32; //32 is physical height of sprite
+			//Runway parts dont start with sprite
+			GameObject * runwayPart = new GameObject(new string("runway"),x<<8,(runwayHeight+10)<<8,64,32,-1,runwaygfx,0,0,0);
+			runwayObjects.push_back(runwayPart);
+		}
+		//Add the tower
+		s16 towergfx = PA_CreateGfx(0, (void*)runway_tower_image_Sprite, OBJ_SIZE_32X64, 1);
+		u16 x = (runwayStart+(RUNWAYLENGTH/2)-8);
+		u16 y = getHeightAtPoint(x)-64;
+		GameObject * tower = new GameObject(new string("runway_tower"),x<<8,y<<8,32,64,-1,towergfx,0,0,0);
+		runwayObjects.push_back(tower);
 	#endif
 
-	u16 levelWidth = (heightMap->size()-2)*16;
-	u16 levelHeight = (u16)(SHEIGHT*1.5);
-	
-	//Init level with full heightmap
-	currentLevel = new Level(levelWidth,levelHeight,levelTitle,heightMap);
 
+}
+
+void InGame::initPlane(){
+	//Load game objects
+	//Startx starty width height spriteindex gfxindex startangle vx vy firedelay
+	//x and y are always top left of sprite
+	u16 plane_gfx = PA_CreateGfx(0, (void*)spitfire_image_Sprite, OBJ_SIZE_32X32, 1);
+	plane = new PlaneObject(runwayStart<<8,(runwayHeight+12)<<8,16,8,0,plane_gfx,0,0,0,9);
+
+	//Load palattes
+	PA_LoadSpritePal(0, 0, (void*)spitfire_image_Pal);
+	PA_LoadSpritePal(0,1,(void*)grass_image_Pal);
+	PA_LoadSpritePal(0,2,(void*)runway_image_Pal);
+
+	//Load plane sprite
+	PA_CreateSpriteFromGfx(0, plane->spriteIndex,plane->gfxref,OBJ_SIZE_32X32, 1, 0, plane->getX(), plane->getY());
+
+	//Enable rotation for plane
+	PA_SetSpriteRotEnable(0,0,0);
 }
 
 void InGame::initSound(){
@@ -374,7 +374,7 @@ void InGame::initSound(){
 	player_gun_sfx_size[2]=(s32)fiftycal3_sfx_size;
 	player_gun_sfx_size[3]=(s32)fiftycal4_sfx_size;
 
-	PA_PlaySoundEx2 (0,plane_engine_sfx,(s32)plane_engine_sfx_size,plane->speed/4-49,44100,0,true,0);
+	PA_PlaySoundEx2 (0,plane_engine_sfx,(s32)plane_engine_sfx_size,(plane->speed<<8)/1109,44100,0,true,0);
 }
 /**
 **Process height map
@@ -415,11 +415,11 @@ void InGame::run(){
 		//Do updates
 		doUpdates();
 
-		//Do collisions
-		doCollisions();
-
 		//Do drawing
 		doDrawing();
+
+		//Do collisions
+		doCollisions();
 		
 		//Print debug stuff (if in debug mode)
 		#ifdef DEBUG
@@ -434,23 +434,23 @@ void InGame::run(){
 Process input function
 **/
 void InGame::processInput(void){
-	if(Pad.Held.A){
+	if(Pad.Held.R&&!plane->onRunway){
 		if(plane->timeSinceFired>plane->fireDelay){plane->timeSinceFired=0;addPlayerBullet();}
 	}
-	if(Pad.Newpress.B){
+	if(Pad.Newpress.L&&!plane->onRunway){
 		addPlayerBomb();
 	}
-	if(Pad.Held.Up){
+	if(Pad.Held.B){
 		plane->throttleOn=1;
 	}
 	else{
 		plane->throttleOn=0;
 	}
-	if(Pad.Held.Left){
+	if(Pad.Held.Left&&!plane->onRunway){
 		plane->angle+=PLANETURNSPEED;
 		if(plane->getAngle()>511){plane->angle=0;}
 	}
-	if(Pad.Held.Right){
+	if(Pad.Held.Right&&!plane->onRunway){
 		plane->angle-=PLANETURNSPEED;
 		if(plane->getAngle()<0){plane->angle=511<<8;}
 	}
@@ -462,13 +462,11 @@ void InGame::addPlayerBullet(){
 	s32 sound_size = player_gun_sfx_size[soundIndex];
 	PA_PlaySound(PA_GetFreeSoundChannel(),sound,sound_size,127,44100);
 
-	u16 planeRadius = plane->width/2;
-
 	s16 componentx = PA_Cos(plane->getAngle());
 	s16 componenty = -PA_Sin(plane->getAngle());
 
-	s32 startx = plane->x+((planeRadius)<<8)+(componentx*(planeRadius));
-	s32 starty = plane->y+((planeRadius)<<8)+(componenty*(planeRadius));
+	s32 startx = plane->x+(16<<8)+(componentx*((plane->width+4)/2));
+	s32 starty = plane->y+(15<<8)+(componenty*((plane->width+4)/2));
 	
 	u16 width =1;
 	u16 height =1;
@@ -529,7 +527,8 @@ void InGame::updateViewport(){
 	
 	//Viewport calculations using simulated float accuracy
 	s16 xComponent = PA_Cos(angle);
-	viewportx = plane->x+(16<<8)-((SWIDTH/2)<<8)+((plane->vx)*40)-((xComponent*((MINPLANESPEED/2)*40))>>8);
+	u16 adjust = (plane->getSpeed()<MINPLANESPEED)? plane->getSpeed():MINPLANESPEED;
+	viewportx = plane->x+(16<<8)-((SWIDTH/2)<<8)+((plane->vx)*40)-((xComponent*((adjust)*40))>>8);
 	viewporty = plane->y-((SHEIGHT/2)<<8);
 
 	if(getViewPortX()<0){viewportx=0;}
@@ -546,23 +545,61 @@ void InGame::updateViewport(){
 }
 void InGame::updatePlane(){
 	//Update engine sound
-	PA_SetSoundChannelVol(0,plane->speed/4-49);
-	
-	//PROPER ALGORITHM
-	s32 vy = plane->vy + GRAVITY;
-	s32 vx = plane->vx;
-	s16 angle = plane->getAngle();
-	u16 speed = getSpeedFromVelocity(vx,vy);//Base speed calculated from vx and vy
-	
-	//Increase speed if holding up
-	speed+=plane->throttleOn*PLANEPOWER;
-	
-	//Take off friction
-	speed-=FRICTION;
+	PA_SetSoundChannelVol(0,(plane->speed<<8)/1109);
 
-	//Speed kept in certain range
-	if(speed<MINPLANESPEED){speed=MINPLANESPEED;}
-	if(speed>MAXPLANESPEED){speed=MAXPLANESPEED;}
+	//Check for landing
+	s16 angle = plane->getAngle();
+
+	//Check for takeoff
+	if(plane->onRunway&&((plane->getX()+plane->width>runwayEnd&&angle==0)||(plane->getX()<runwayStart&&angle==256))){
+		if(plane->speed<MINPLANESPEED){planeCrash();return;}	//Crash if we have reached the end of runway and we are not fast enough
+		plane->onRunway=0;
+		plane->takingOff=0;
+		if(angle==256){plane->angle=246<<8;}
+		else{plane->angle=10<<8;}
+	}
+
+	s32 vy = plane->vy;
+	s32 vx = plane->vx;
+	s32 speed =0;
+	
+	if(!plane->onRunway){
+		//PROPER ALGORITHM
+		vy+=GRAVITY;
+		speed = getSpeedFromVelocity(vx,vy);//Base speed calculated from vx and vy
+
+		//Increase speed if holding up
+		speed+=plane->throttleOn*PLANEPOWER;
+		
+		//Take off friction
+		speed*=FRICTION;
+		speed=speed>>16;
+
+		//Speed kept in certain range
+		if(speed<MINPLANESPEED){speed=MINPLANESPEED;}
+		if(speed>MAXPLANESPEED){speed=MAXPLANESPEED;}
+	}
+	else{
+		//If we are on the runway the throttle is on and we are not yet taking off
+		//Make sure we are! (taking off is 1 for yes 0 for in air and -1 for landing)
+		if(plane->onRunway&&plane->throttleOn&&plane->takingOff==0){
+			plane->takingOff=1;
+		}
+		speed = getSpeedFromVelocity(vx,vy);//Base speed calculated from vx and vy
+		if(!plane->throttleOn&&plane->takingOff){plane->throttleOn=1;} //Throttle always on when taking off
+		speed+=plane->throttleOn*PLANEPOWER*plane->takingOff;
+		
+		//Do a refeuling here turning around etc if landing
+		if(speed<=0&&plane->takingOff==-1){
+			speed=0;
+			plane->takingOff=0;
+			//Flip planes current facing
+			if(angle>128&&angle<384){plane->angle=0<<8;}
+			else{plane->angle=256<<8;}
+		}
+		//Make sure we dont exceed min speed when taking off
+		if(speed>MINPLANESPEED&&plane->takingOff==1){speed=MINPLANESPEED;}
+	}
 	
 	//Recalculate xv and yv
 	plane->vx = (PA_Cos(angle)*speed)>>8;
@@ -572,6 +609,23 @@ void InGame::updatePlane(){
 	plane->y+=plane->vy;
 	
 	plane->speed=speed;
+
+	u16 contactingRunway = (plane->getX()>runwayStart&&plane->getX()<runwayEnd)&&planeLandscapeCollision();
+
+	//If plane is currently in the air and is contacting the runway
+	if((plane->takingOff==0&&contactingRunway)){
+		if((angle>255&&angle<281)||(angle>486)){
+			if(plane->speed>MINPLANESPEED+100){planeCrash();return;}//Need to be going at slowly to land
+			plane->takingOff=-1;
+			plane->onRunway=1;
+			plane->y=(runwayHeight+12)<<8;
+			if(angle>128&&angle<384){plane->angle=256<<8;}
+			else{plane->angle=0;}
+		}
+		else{
+			planeCrash();return; //Crash since we came at the runway at to steep angle
+		}
+	}
 
 	//If the plane is going to be completely rendered above the y threshold reflect its current angle
 	if(plane->getY()<(SHEIGHT-currentLevel->levelHeight)-50){
@@ -598,8 +652,33 @@ void InGame::updatePlane(){
 		plane->angle=reflected<<8;
 	}
 
-	//Rotate plane
+	//Rotate plane and set animation frame
 	PA_SetRotset(0, 0, angle,256,256);
+	//if(angle>128&&angle<384){PA_SetSpriteAnim(0, 0, 12);} //METHINKS LUT IS IN ORDER
+	if(angle<256){
+		if(angle<=68){
+			PA_SetSpriteAnim(0, 0, 0);
+		}
+		else if(angle>=188){
+			PA_SetSpriteAnim(0, 0, 12);
+		}
+		else{
+			u16 frame = ((angle-68)/10)+1;
+			PA_SetSpriteAnim(0, 0, frame);
+		}
+	}
+	else{
+		if(angle>=444){
+			PA_SetSpriteAnim(0, 0, 0);
+		}
+		else if(angle<=324){
+			PA_SetSpriteAnim(0, 0, 12);
+		}
+		else{
+			u16 frame = 12-(((angle-324)/10)+1);
+			PA_SetSpriteAnim(0, 0, frame);
+		}
+	}
 }
 
 u16 InGame::getSpeedFromVelocity(s16 vx,s16 vy){	
@@ -656,6 +735,9 @@ void InGame::doDrawing(void){
 	//Draw plane
 	drawPlane();
 
+	//Draw runway
+	drawRunway();
+
 	//Render landscape
 	drawLandscape();
 
@@ -667,26 +749,48 @@ void InGame::drawPlane(){
 	s32 planey =((plane->y-viewporty)>>8);
 	PA_SetSpriteXY(0,plane->spriteIndex, planex, planey);
 }
-void InGame::drawRunwway(){
+void InGame::drawRunway(){
 
 	vector<GameObject*>::iterator it;
-	it = runway.begin();
+	it = runwayObjects.begin();
 
-	while( it != runway.end()){
-		GameObject* runwayPiece = *it;
-		u16 x = runwayPiece->getX();
-		u16 y = runwayPiece->getY();
+	while( it != runwayObjects.end()){
+		GameObject* runwayPiece = (GameObject*)(*it);
+		s16 x = runwayPiece->getX();
+		s16 y = runwayPiece->getY();
 		u16 width = runwayPiece->width;
+		s16 spriteIndex = runwayPiece->spriteIndex;
 
-		//Check piece is at least partly on screen
-		if(x-getOffsetX()+width<0||x-getOffsetX()>SWIDTH){
+		//Check piece is offscreen...if so make sure it doesnt have a sprite index
+		if(x-getViewPortX()+width<0||x-getViewPortX()>SWIDTH||y-getViewPortY()>SHEIGHT){
 			//If piece has a spite index put it back into sprite pool
-			s16 index = runwayPiece->spriteIndex;
-			if(index!=-1){
+			if(spriteIndex!=-1){
 				runwayPiece->spriteIndex=-1;
-				spritePool.push_back(index);
+				spritePool.push_back(spriteIndex);
+				PA_SetSpriteY(0, spriteIndex, 193);	//Hide sprite until its used again
 			}
 		}
+		//If its on screen test if it has a sprite index yet
+		else{
+			//It needs a sprite index assign one
+			if(spriteIndex==-1){
+				spriteIndex = spritePool.back();
+				spritePool.pop_back();
+				runwayPiece->spriteIndex=spriteIndex;
+				PA_SetSpritePrio(0,spriteIndex,2);
+				if(runwayPiece->width==64){
+					PA_CreateSpriteFromGfx(0, spriteIndex,runwayPiece->gfxref,OBJ_SIZE_64X32, 1, 2, runwayPiece->getX()-getViewPortX(),  runwayPiece->getY()-getViewPortY());
+				}
+				else{
+					PA_CreateSpriteFromGfx(0, spriteIndex,runwayPiece->gfxref,OBJ_SIZE_32X64, 1, 2, runwayPiece->getX()-getViewPortX(),  runwayPiece->getY()-getViewPortY());
+				}
+			}
+			//It already has a sprite index to move it
+			else{
+				PA_SetSpriteXY(0,spriteIndex,runwayPiece->getX()-getViewPortX(),runwayPiece->getY()-getViewPortY());
+			}
+		}
+		it++;
 	}
 
 }
@@ -757,7 +861,7 @@ void InGame::drawLandscape(){
 				PA_SetSpriteHflip(0, availableIndex, flipped); // (screen, sprite, flip(1)/unflip(0)) HFlip -> Horizontal flip
 				//Add index to list used by landscape
 				landscapeIndexs.push_back(availableIndex);
-				//PA_SetSpritePrio(0,availableIndex,1);
+				PA_SetSpritePrio(0,availableIndex,1);
 				y+=32;
 				if(y>SHEIGHT)break;
 			}
@@ -767,7 +871,7 @@ void InGame::drawLandscape(){
 				spritePool.pop_back();					//Get available index
 				PA_CreateSpriteFromGfx(0,availableIndex,blackTile,OBJ_SIZE_16X32, 1, 1, x,y);
 				landscapeIndexs.push_back(availableIndex);
-				//PA_SetSpritePrio(0,availableIndex,1);
+				PA_SetSpritePrio(0,availableIndex,1);
 				y+=32;
 			}
 		}
@@ -808,11 +912,13 @@ u16 InGame::smaller(u16 a,u16 b){
 Do collisions function
 **/
 void InGame::doCollisions(){
-	//Plane landscape collision
-	planeLandscapeCollision();
+	//Plane landscape collision...returns boolean to make calculating landing easier
+	if(planeLandscapeCollision())planeCrash();
 }
 
-void InGame::planeLandscapeCollision(){
+u16 InGame::planeLandscapeCollision(){
+	if(plane->onRunway){return 0;}
+
 	//First get the bottom middle
 	s16 currentAngle = plane->getAngle();
 	s16 normalAdjust = (currentAngle<128||currentAngle>384)? -128:128;
@@ -837,8 +943,7 @@ void InGame::planeLandscapeCollision(){
 	s16 tipyBack = bottomy+((yComponent*-planeRadius)>>8);
 	
 	//Now collision tests
-	if(landscapeCollision(tipxFront,tipyFront))planeCrash();
-	if(landscapeCollision(tipxBack,tipyBack))planeCrash();
+	return(landscapeCollision(tipxFront,tipyFront)||landscapeCollision(tipxBack,tipyBack));
 }
 
 int InGame::landscapeCollision(s16 x, s16 y){
@@ -865,7 +970,7 @@ void InGame::planeCrash(){
 	PA_SetSpriteY(0, 0, 193);	// Hide sprite
 	u16 plane_gfx = plane->gfxref;	//Make sure that plane has right gfx ref
 	delete plane;
-	plane = new PlaneObject(128<<8,50<<8,32,8,0,plane_gfx,0,MINPLANESPEED,0,9);
+	plane = new PlaneObject(runwayStart<<8,(runwayHeight+12)<<8,16,8,0,plane_gfx,0,0,0,9);
 }
 /**
 ** Inline squared function
@@ -888,7 +993,5 @@ void InGame::print_debug(void){
 	PA_OutputText(1,0, 5, "Plane angle:%d (%d)", plane->getAngle(),plane->angle);
 	PA_OutputText(1,0, 6, "Landscape sprites used:%d", landscapeIndexs.size());
 	PA_OutputText(1,0, 7, "Available sprites:%d", spritePool.size());
-	PA_OutputText(1,0, 8, "Active projectiles:%d", projectiles.size());
-	PA_OutputText(1,0, 9, "Time since last fired:%d", plane->timeSinceFired);
-	PA_OutputText(1,0, 10, "Speed would be:%d", getSpeedFromVelocity(plane->vx,(plane->vy+(GRAVITY*20))));
+	PA_OutputText(1,0, 8, "Plane taking off:%d", plane->takingOff);
 }

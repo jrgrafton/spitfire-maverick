@@ -7,6 +7,7 @@ class PlaneObject : public GameObject{
 		u16 timeSinceFired;
 		u16 throttleOn;
 		u16 onRunway;
+		s16 takingOff;
 
 		PlaneObject(s32 startx,s32 starty,u16 width,u16 height,s16 spriteIndex,u16 gfxref,s32 angle,s16 vx,s16 vy,u16 fireDelay);
 		~PlaneObject();
