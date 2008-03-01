@@ -101,10 +101,12 @@ in_game.o:  \
   c:/ds_dev/Projects/spitfire_maverick/spitfire_maverick/spitfire_maverick/source/../header/../header/state.h \
   c:/ds_dev/Projects/spitfire_maverick/spitfire_maverick/spitfire_maverick/source/../header/game_object.h \
   c:/ds_dev/Projects/spitfire_maverick/spitfire_maverick/spitfire_maverick/source/../header/plane_object.h \
+  c:/ds_dev/Projects/spitfire_maverick/spitfire_maverick/spitfire_maverick/source/../header/particle_object.h \
   c:/ds_dev/Projects/spitfire_maverick/spitfire_maverick/spitfire_maverick/source/../header/level.h \
   c:/ds_dev/Projects/spitfire_maverick/spitfire_maverick/spitfire_maverick/source/../header/state.h \
   c:/ds_dev/Projects/spitfire_maverick/spitfire_maverick/spitfire_maverick/source/../header/in_game.h \
   c:/ds_dev/Projects/spitfire_maverick/spitfire_maverick/spitfire_maverick/source/../header/../header/game_object.h \
+  c:/ds_dev/Projects/spitfire_maverick/spitfire_maverick/spitfire_maverick/source/../header/../header/particle_object.h \
   c:/ds_dev/Projects/spitfire_maverick/spitfire_maverick/spitfire_maverick/build/fiftycal1_sfx.h \
   c:/ds_dev/Projects/spitfire_maverick/spitfire_maverick/spitfire_maverick/build/fiftycal2_sfx.h \
   c:/ds_dev/Projects/spitfire_maverick/spitfire_maverick/spitfire_maverick/build/fiftycal3_sfx.h \

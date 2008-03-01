@@ -2,6 +2,7 @@
 #define __INGAME1__
 
 #include "../header/game_object.h"
+#include "../header/particle_object.h"
 
 //Main State constants
 const u16 SCREENHOLE =48;	//How big percieved hole between screens is
@@ -38,43 +39,62 @@ class InGame : public State{
 	protected:
 		void init();
 	private:
+		//Init functions
 		void initGraphics();
 		void initSound();
 		void initLevel();
+		void initRunway();
 		void initPlane();
 		void processHeightMap(char* fileLine,vector<u16>* heightMap);
 		int addNextHeight(string* line,vector<u16>* heightMap);
 		
+		//Collision based functions
 		void doCollisions();
 		int landscapeCollision(s16 x,s16 y);
 		u16 planeLandscapeCollision();
 		u16 getHeightAtPoint(u16 x);
+		void planeCrash();
+		void planeCrashParticles();
+		bool particleLandscapeCollision(ParticleObject* pa);
+		u16 getNormalAtPoint(u16 x);
+		u16 reflectOverNormal(u16 angle,u16 normal);
 
+		//Input driven functions
 		void processInput();
 		void addPlayerBullet();
 		void addPlayerBomb();
 		
+		//Drawing functions
 		void doDrawing();
 		void drawLandscape();
 		void resetLandscape();
 		void drawProjectiles();
+		void drawParticles();
 		void drawPlane();
 		void drawRunway();
+		void drawObject(GameObject* go,bool usesRot,u16 doubleSize,u16 priority);
 		
+		//Utility functions
 		inline u16 taller(u16 a,u16 b);
 		inline u16 smaller(u16 a,u16 b);
 		inline u32 squared(s32 a);
+		inline u16 wrapAngle(s16 angle);
+		inline u16 wrapAngleShifted(s32 angle);
+		inline u16 flipAngle(s16 angle);
+		inline s16 wrapAngleDistance(u16 angle1,u16 angle2);
 		inline s16 getViewPortX();
 		inline s16 getViewPortY();
-
+		
+		//Update functions
 		void doUpdates();
 		void updatePlane();
 		u16 getSpeedFromVelocity(s16 vx,s16 vy);
 		void updateViewport();
 		void updateProjectiles();
-
-		void planeCrash();
-
+		void updateParticles();
+		
+		//Other functions
+		void scrollBackToRunway();
 		void print_debug(void);
 };
 #endif

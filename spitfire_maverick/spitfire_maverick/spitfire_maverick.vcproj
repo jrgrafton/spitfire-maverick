@@ -63,6 +63,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\source\particle_object.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\source\plane_object.cpp"
 				>
 			</File>
@@ -90,6 +94,10 @@
 			</File>
 			<File
 				RelativePath=".\header\main.h"
+				>
+			</File>
+			<File
+				RelativePath=".\header\particle_object.h"
 				>
 			</File>
 			<File

@@ -103,6 +103,7 @@ main.o:  \
   c:/ds_dev/Projects/spitfire_maverick/spitfire_maverick/spitfire_maverick/source/../header/game_object.h \
   c:/ds_dev/Projects/spitfire_maverick/spitfire_maverick/spitfire_maverick/source/../header/in_game.h \
   c:/ds_dev/Projects/spitfire_maverick/spitfire_maverick/spitfire_maverick/source/../header/../header/game_object.h \
+  c:/ds_dev/Projects/spitfire_maverick/spitfire_maverick/spitfire_maverick/source/../header/../header/particle_object.h \
   c:/ds_dev/Projects/spitfire_maverick/spitfire_maverick/spitfire_maverick/source/../header/splash.h \
   c:/ds_dev/Projects/spitfire_maverick/spitfire_maverick/spitfire_maverick/source/../source/gfx/all_gfx.c \
   c:/ds_dev/Projects/spitfire_maverick/spitfire_maverick/spitfire_maverick/source/../source/gfx/all_gfx.h \
@@ -129,8 +130,10 @@ main.o:  \
   c:/ds_dev/Projects/spitfire_maverick/spitfire_maverick/spitfire_maverick/source/../source/gfx/runway_image.c \
   c:/ds_dev/Projects/spitfire_maverick/spitfire_maverick/spitfire_maverick/source/../source/gfx/runway_tower_image.c \
   c:/ds_dev/Projects/spitfire_maverick/spitfire_maverick/spitfire_maverick/source/../source/gfx/spitfire_image.c \
+  c:/ds_dev/Projects/spitfire_maverick/spitfire_maverick/spitfire_maverick/source/../source/gfx/plane_piece_particles_image.c \
   c:/ds_dev/Projects/spitfire_maverick/spitfire_maverick/spitfire_maverick/source/../source/gfx/plane_image.pal.c \
   c:/ds_dev/Projects/spitfire_maverick/spitfire_maverick/spitfire_maverick/source/../source/gfx/background_image.pal.c \
   c:/ds_dev/Projects/spitfire_maverick/spitfire_maverick/spitfire_maverick/source/../source/gfx/grass_image.pal.c \
   c:/ds_dev/Projects/spitfire_maverick/spitfire_maverick/spitfire_maverick/source/../source/gfx/runway_image.pal.c \
-  c:/ds_dev/Projects/spitfire_maverick/spitfire_maverick/spitfire_maverick/source/../source/gfx/spitfire_image.pal.c
+  c:/ds_dev/Projects/spitfire_maverick/spitfire_maverick/spitfire_maverick/source/../source/gfx/spitfire_image.pal.c \
+  c:/ds_dev/Projects/spitfire_maverick/spitfire_maverick/spitfire_maverick/source/../source/gfx/particles_image.pal.c

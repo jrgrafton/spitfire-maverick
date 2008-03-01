@@ -3,13 +3,16 @@
 
 class PlaneObject : public GameObject{
 	public:
-		u16 fireDelay;					//Can fire three times a second
+		u16 fireDelay;
+		u16 bombDelay;
 		u16 timeSinceFired;
+		u16 timeSinceBombed;
 		u16 throttleOn;
 		u16 onRunway;
 		s16 takingOff;
+		bool crashed;
 
-		PlaneObject(s32 startx,s32 starty,u16 width,u16 height,s16 spriteIndex,u16 gfxref,s32 angle,s16 vx,s16 vy,u16 fireDelay);
+		PlaneObject(s32 startx,s32 starty,u16 width,u16 height,u16* objsize,s16 spriteIndex,u16 gfxref,s32 angle,s16 vx,s16 vy,u16 fireDelay,u16 bombDelay);
 		~PlaneObject();
 };
 #endif

@@ -34,6 +34,7 @@ extern "C" {
 #include "runway_image.c"
 #include "runway_tower_image.c"
 #include "spitfire_image.c"
+#include "plane_piece_particles_image.c"
 
 // Palette files : 
 #include "plane_image.pal.c"
@@ -41,6 +42,7 @@ extern "C" {
 #include "grass_image.pal.c"
 #include "runway_image.pal.c"
 #include "spitfire_image.pal.c"
+#include "particles_image.pal.c"
 
 // Background Pointers :
 PAGfx_struct background_image = {(void*)background_image_Map, 768, (void*)background_image_Tiles, 49152, (void*)background_image_Pal, (int*)background_image_Info };
