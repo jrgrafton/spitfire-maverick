@@ -38,6 +38,9 @@ vector<GameObject*> projectiles;
 vector<ParticleObject*> particles;
 u16 planePartgfx;					//Store ref to particle gfx for when we create them
 
+//Landscape objects
+
+
 //Sprite pool of available indexes
 vector<u16> spritePool;
 vector<u16> rotPool; //Pool of available rotsets
@@ -488,10 +491,10 @@ Process input function
 **/
 void InGame::processInput(void){
 	if(Pad.Held.R&&!plane->onRunway){
-		if(plane->timeSinceFired>plane->fireDelay){plane->timeSinceFired=0;addPlayerBullet();}
+		if(plane->canShoot()){plane->timeSinceFired=0;addPlayerBullet();}
 	}
 	if(Pad.Newpress.L&&!plane->onRunway){
-		if(plane->timeSinceBombed>plane->bombDelay){plane->timeSinceBombed=0;addPlayerBomb();}
+		if(plane->canBomb()){plane->timeSinceBombed=0;addPlayerBomb();}
 	}
 	if(Pad.Held.B){
 		plane->throttleOn=1;
@@ -514,6 +517,8 @@ void InGame::addPlayerBullet(){
 	void* sound = player_gun_sfx[soundIndex];
 	s32 sound_size = player_gun_sfx_size[soundIndex];
 	PA_PlaySound(PA_GetFreeSoundChannel(),sound,sound_size,127,44100);
+	
+	plane->totalAmmo--;
 
 	s16 componentx = PA_Cos(plane->getAngle());
 	s16 componenty = -PA_Sin(plane->getAngle());
@@ -537,6 +542,7 @@ void InGame::addPlayerBullet(){
 
 void InGame::addPlayerBomb(){
 	PA_PlaySound(PA_GetFreeSoundChannel(),player_bomb_sfx,(u32)player_bomb_sfx_size,127,44100);
+	plane->totalBombs--;
 
 	//First get the bottom middle
 	s16 currentAngle = plane->getAngle();
@@ -603,12 +609,13 @@ void InGame::updatePlane(){
 	s32 speed =0;
 	
 	if(!plane->onRunway){
+		if(plane->totalFuel>0)plane->totalFuel--;
 		//PROPER ALGORITHM
 		vy+=GRAVITY;
 		speed = getSpeedFromVelocity(vx,vy);//Base speed calculated from vx and vy
 
 		//Increase speed if holding up
-		speed+=plane->throttleOn*PLANEPOWER;
+		if(plane->totalFuel>0)speed+=plane->throttleOn*PLANEPOWER;
 		
 		//Take off friction
 		speed*=FRICTION;
@@ -637,6 +644,7 @@ void InGame::updatePlane(){
 		if(speed<=0&&plane->takingOff==-1){
 			speed=0;
 			plane->takingOff=0;
+			plane->restock();
 			//Flip planes current facing
 			if(angle>128&&angle<384){plane->angle=0<<8;}
 			else{plane->angle=256<<8;}
@@ -646,8 +654,14 @@ void InGame::updatePlane(){
 	}
 	
 	//Recalculate xv and yv
-	plane->vx = (PA_Cos(angle)*speed)>>8;
-	plane->vy = (-PA_Sin(angle)*speed)>>8;
+	if(plane->totalFuel>0){
+		plane->vx = (PA_Cos(angle)*speed)>>8;
+		plane->vy = (-PA_Sin(angle)*speed)>>8;
+	}
+	else{
+		plane->vy+=GRAVITY;
+		plane->angle=(PA_GetAngle(plane->x,plane->y,plane->x+plane->vx,plane->y+plane->vy)<<8);
+	}	//Hurtle towards earth if no fuel
 
 	plane->x+=plane->vx;
 	plane->y+=plane->vy;
@@ -796,8 +810,8 @@ bool InGame::particleLandscapeCollision(ParticleObject* po){
 	}
 	
 	//Ok so we know we are close enough so start with getting the center of the particle as reference
-	s32 cx = po->x+2048;
-	s32 cy = po->y+2048;
+	s32 cx = po->x+((po->width/2)<<8);
+	s32 cy = po->y+((po->width/2)<<8);
 	
 	//What angle is particle currently facing towards
 	s16 facingAngle = po->getAngle();
@@ -811,7 +825,7 @@ bool InGame::particleLandscapeCollision(ParticleObject* po){
 	//Get the top and bottom middle of the particle
 	s16 topNormal = wrapAngle(po->getAngle()+(-128*facingLeft));
 	s16 bottomNormal = wrapAngle(po->getAngle()+(128*facingLeft));
-	u16 radius = po->width/4;
+	u16 radius = (po->width/2)/(po->zoom/256);
 
 	s16 componentxTop = PA_Cos(topNormal); 
 	s16 componentyTop = -PA_Sin(topNormal);
@@ -957,7 +971,7 @@ void InGame::drawRunway(){
 
 	while( it != runwayObjects.end()){
 		GameObject* runwayPiece = (GameObject*)(*it);
-		drawObject(runwayPiece,false,0,2);
+		drawObject(runwayPiece,false,256,2);
 		it++;
 	}
 
@@ -1009,12 +1023,12 @@ void InGame::drawParticles(){
 
 	while( it != particles.end()) {
 		ParticleObject* po = (*it);
-		drawObject(po,true,1,1);
+		drawObject(po,true,po->zoom,1);
 		it++;
 	}
 }
 
-void InGame::drawObject(GameObject* go,bool usesRot,u16 doubleSize,u16 priority){
+void InGame::drawObject(GameObject* go,bool usesRot,u16 zoom,u16 priority){
 		//Do dynamic allocation/deallocation of sprite indexes and rot indexes
 		s16 finalx = go->getX()-getViewPortX();
 		s16 finaly = go->getY()-getViewPortY();
@@ -1050,7 +1064,7 @@ void InGame::drawObject(GameObject* go,bool usesRot,u16 doubleSize,u16 priority)
 			//It already has a sprite index to move it
 			else{
 				PA_SetSpritePrio(0,spriteIndex,priority);
-				PA_SetSpriteDblsize(0,spriteIndex,doubleSize);
+				//PA_SetSpriteDblsize(0,spriteIndex,doubleSize);
 				PA_SetSpriteXY(0,spriteIndex,finalx,finaly);
 			}
 			if(rotIndex==-1&&usesRot){	//Make sure it has a rot index and enable rotation for that index
@@ -1058,10 +1072,10 @@ void InGame::drawObject(GameObject* go,bool usesRot,u16 doubleSize,u16 priority)
 				rotPool.pop_back();
 				go->rotIndex=rotIndex;
 				PA_SetSpriteRotEnable(0, spriteIndex,rotIndex);
-				PA_SetRotset(0, go->rotIndex, go->getAngle(),512,512);
+				PA_SetRotset(0, go->rotIndex, go->getAngle(),zoom,zoom);
 			}
 			else if(usesRot){
-				PA_SetRotset(0, go->rotIndex, go->getAngle(),512,512);
+				PA_SetRotset(0, go->rotIndex, go->getAngle(),zoom,zoom);
 			}
 		}
 }
@@ -1230,7 +1244,7 @@ inline s16 InGame::wrapAngleDistance(u16 angle1,u16 angle2){
 **
 **/
 void InGame::planeCrash(){
-	PA_SetSoundChannelVol(0,0);	//Kill engine
+	PA_SetSoundChannelVol(0,0);	//Kill engine sound
 	PA_PlaySound(PA_GetFreeSoundChannel(),crash_sfx,(u32)crash_sfx_size,127,44100);
 	plane->crashed=true;
 	PA_SetSpriteY(0, 0, 193);	// Hide sprite
@@ -1276,9 +1290,10 @@ void InGame::planeCrashParticles(){
 		s16 particlevx = planevx;
 		s16 particlevy = planevy;
 		s16 rotIndex = -1;	//Rot index also dynamically assigned
+		u16 zoom=512;
 		
 		//Yey new particle
-		particles.push_back(new ParticleObject(name,startx,starty,width,height,objsize,spriteIndex,palette,gfxref,currentAngle,rotspeed,rotIndex,particlevx,particlevy,ttl,heavy));
+		particles.push_back(new ParticleObject(name,startx,starty,width,height,objsize,spriteIndex,palette,gfxref,currentAngle,rotspeed,rotIndex,particlevx,particlevy,ttl,heavy,zoom));
 	}
 
 	
@@ -1344,4 +1359,5 @@ void InGame::print_debug(void){
 	PA_OutputText(1,0, 8, "Plane taking off:%d", plane->takingOff);
 	PA_OutputText(1,0, 9, "Particle count:%d", particles.size());
 	PA_OutputText(1,0, 10,"Rot pool size:%d", rotPool.size());
+	PA_OutputText(1,0, 11,"Bombs: %d Ammo: %d Fuel: %d Health %d",plane->totalBombs,plane->totalAmmo,plane->totalFuel,plane->totalHealth);
 }

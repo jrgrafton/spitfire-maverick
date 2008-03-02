@@ -12,7 +12,7 @@ const u16 SHEIGHT = 191;
 const u16 SWIDTH = 255;
 
 //Defines friction to apply multiply by FRICTION then >>16 (65536)
-const u32 FRICTION = 65500;
+const u32 FRICTION = 65520;
 
 //Defines gravity (number subtracted from gameobject yvel every update)
 const u16 GRAVITY = 8;

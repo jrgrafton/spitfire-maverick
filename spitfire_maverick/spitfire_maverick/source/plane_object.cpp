@@ -14,8 +14,25 @@ PlaneObject::PlaneObject(s32 startx,s32 starty,u16 width,u16 height,u16* objsize
 	this->onRunway=1;
 	this->takingOff=0;
 	this->crashed=false;
+	this->totalBombs=4;
+	this->totalAmmo=500;
+	this->totalFuel=1200;
+	this->totalHealth=100;
+}
+bool PlaneObject::canShoot(){
+	return (totalAmmo>0&&timeSinceFired>fireDelay);
 }
 
+bool PlaneObject::canBomb(){
+	return (totalBombs>0&&timeSinceBombed>bombDelay);
+}
+
+void PlaneObject::restock(){
+	this->totalBombs=4;
+	this->totalAmmo=500;
+	this->totalFuel=18000;
+	this->totalHealth=100;
+}
 PlaneObject::~PlaneObject(){
 
 }

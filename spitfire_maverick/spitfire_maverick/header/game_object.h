@@ -13,6 +13,7 @@ class GameObject{
 		s16 rotIndex;
 		s16 palette;
 		u16* objsize;
+		u16 spriteSize;
 
 		//Functions
 		s16 getX();
