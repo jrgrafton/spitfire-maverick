@@ -48,8 +48,7 @@ class InGame : public State{
 		void processHeightMap(char* fileLine,vector<u16>* heightMap);
 		int addNextHeight(string* line,vector<u16>* heightMap);
 		
-		//Collision based functions
-		void doCollisions();
+		//Collision based functions (these are called from the relative update routines!)
 		int landscapeCollision(s16 x,s16 y);
 		u16 planeLandscapeCollision();
 		u16 getHeightAtPoint(u16 x);
@@ -72,7 +71,7 @@ class InGame : public State{
 		void drawParticles();
 		void drawPlane();
 		void drawRunway();
-		void drawObject(GameObject* go,bool usesRot,u16 doubleSize,u16 priority);
+		void drawObject(GameObject* go,u16 priority);
 		
 		//Utility functions
 		inline u16 taller(u16 a,u16 b);

@@ -1,6 +1,7 @@
 //internal headers
 #include "../header/main.h"
 #include "../header/game_object.h"
+#include "../header/sprite_info.h"
 #include "../header/plane_object.h"
 #include "../header/particle_object.h"
 #include "../header/level.h"
@@ -383,8 +384,9 @@ void InGame::initRunway(){
 		u16* objsize = new u16[2];
 		objsize[0] = temp[0];
 		objsize[1] = temp[1];
-
-		GameObject * runwayPart = new GameObject(new string("runway"),x<<8,(runwayHeight+10)<<8,64,32,objsize,-1,2,runwaygfx,0,-1,0,0);
+		
+		SpriteInfo* so = new SpriteInfo(64,32,0,runwaygfx,-1,-1,2,objsize,256,0,false);
+		GameObject * runwayPart = new GameObject(new string("runway"),x<<8,(runwayHeight+10)<<8,64,32,0,0,0,so);
 		runwayObjects.push_back(runwayPart);
 	}
 	//Add the tower
@@ -396,8 +398,9 @@ void InGame::initRunway(){
 	u16* objsize = new u16[2];
 	objsize[0] = temp[0];
 	objsize[1] = temp[1];
-
-	GameObject * tower = new GameObject(new string("runway_tower"),x<<8,y<<8,32,64,objsize,-1,2,towergfx,0,-1,0,0);
+	
+	SpriteInfo* so = new SpriteInfo(32,64,0,towergfx,-1,-1,2,objsize,256,0,false);
+	GameObject * tower = new GameObject(new string("runway_tower"),x<<8,y<<8,32,64,0,0,0,so);
 	runwayObjects.push_back(tower);
 }
 void InGame::initPlane(){
@@ -410,10 +413,12 @@ void InGame::initPlane(){
 	u16* objsize = new u16[2];
 	objsize[0] = temp[0];
 	objsize[1] = temp[1];
-	plane = new PlaneObject(runwayStart<<8,(runwayHeight+12)<<8,16,8,objsize,0,plane_gfx,0,0,0,9,60);
+
+	SpriteInfo* so = new SpriteInfo(32,32,0,plane_gfx,0,0,0,objsize,256,1,true);
+	plane = new PlaneObject(runwayStart<<8,(runwayHeight-4)<<8,16,8,0,0,0,9,60,so);
 
 	//Load plane sprite
-	PA_CreateSpriteFromGfx(0, plane->spriteIndex,plane->gfxref,OBJ_SIZE_32X32, 1, plane->palette, plane->getX(), plane->getY());
+	PA_CreateSpriteFromGfx(0, so->getSpriteIndex(),so->getGfxRef(),OBJ_SIZE_32X32, 1, so->getPaletteIndex(), plane->getX(), plane->getY());
 
 	//Enable rotation for plane
 	PA_SetSpriteRotEnable(0,0,0);
@@ -468,11 +473,8 @@ void InGame::run(){
 		//Process input
 		processInput();
 		
-		//Do updates
+		//Do updates...All collisions are handled in respective update functions
 		doUpdates();
-
-		//Do collisions
-		doCollisions();
 
 		//Do drawing
 		doDrawing();
@@ -503,12 +505,12 @@ void InGame::processInput(void){
 		plane->throttleOn=0;
 	}
 	if(Pad.Held.Left&&!plane->onRunway){
-		plane->angle+=PLANETURNSPEED;
-		if(plane->getAngle()>511){plane->angle=0;}
+		plane->heading+=PLANETURNSPEED;
+		if(plane->getHeading()>(511<<8)){plane->setHeading(0);}
 	}
 	if(Pad.Held.Right&&!plane->onRunway){
-		plane->angle-=PLANETURNSPEED;
-		if(plane->getAngle()<0){plane->angle=511<<8;}
+		plane->heading-=PLANETURNSPEED;
+		if(plane->getHeading()<0){plane->setHeading(511<<8);}
 	}
 }
 
@@ -520,22 +522,23 @@ void InGame::addPlayerBullet(){
 	
 	plane->totalAmmo--;
 
-	s16 componentx = PA_Cos(plane->getAngle());
-	s16 componenty = -PA_Sin(plane->getAngle());
+	s16 componentx = PA_Cos(plane->getHeading()>>8);
+	s16 componenty = -PA_Sin(plane->getHeading()>>8);
 
-	s32 startx = plane->x+(16<<8)+(componentx*((plane->width+4)/2));
-	s32 starty = plane->y+(15<<8)+(componenty*((plane->width+4)/2));
+	s32 startx = plane->x+(16<<8)+(componentx*((plane->getObjectWidth()+4)/2));
+	s32 starty = plane->y+(15<<8)+(componenty*((plane->getObjectWidth()+4)/2));
 	
 	u16 width =1;
-	u16 height =1;
-	s16 spriteIndex =-1;
-	s32 angle = plane->getAngle();
+	u16 height =6;
+	s32 heading = plane->getHeading()>>8;
 
-	s16 vx = (PA_Cos(angle)*(plane->speed+1000)>>8);
-	s16 vy = (-PA_Sin(angle)*(plane->speed+1000)>>8);
+	s16 vx = (PA_Cos(heading)*(plane->speed+1000)>>8);
+	s16 vy = (-PA_Sin(heading)*(plane->speed+1000)>>8);
 	
 	u16* objsize = new u16[2];
-	GameObject* bullet = new GameObject(new string("player_bullet"),startx,starty,width,height,objsize,spriteIndex,-1,-1,angle,-1,vx,vy);
+	
+	SpriteInfo* so = new SpriteInfo(-1,-1,0,-1,-1,-1,5,objsize,256,0,false);
+	GameObject* bullet = new GameObject(new string("player_bullet"),startx,starty,width,height,heading,vx,vy,so);
 	bullet->vy +=PA_RandMax(64);
 	projectiles.push_back(bullet);
 }
@@ -545,7 +548,7 @@ void InGame::addPlayerBomb(){
 	plane->totalBombs--;
 
 	//First get the bottom middle
-	s16 currentAngle = plane->getAngle();
+	s16 currentAngle = plane->getHeading()>>8;
 	s16 normalAdjust = (currentAngle<128||currentAngle>384)? -128:128;
 
 	s16 normalAngle = currentAngle+normalAdjust;
@@ -557,13 +560,15 @@ void InGame::addPlayerBomb(){
 	s16 starty = ((-PA_Sin(normalAngle) * (plane->height/2))>>8)+plane->getY()+16;
 	
 	u16 width =2;
-	u16 height =1;
-	s16 spriteIndex =-1;
-	s32 angle = plane->angle;
+	u16 height =6;
+	s32 heading = plane->getHeading();
 	
 	u16* objsize = new u16[2];
 	//Will have need to aquire a rotref when it uses an image...and gfx ref and palette
-	GameObject* bomb = new GameObject(new string("player_bomb"),startx<<8,starty<<8,width,height,objsize,spriteIndex,-1,-1,angle,-1,plane->vx,plane->vy);
+	
+	//u16 width,u16 height,s32 angle,u16 gfxref,s16 rotIndex,s16 palette,u16* objsize,u16 zoom,u16 doubleSize bool usesRot
+	SpriteInfo* so = new SpriteInfo(-1,-1,0,-1,-1,-1,5,objsize,256,0,false);
+	GameObject* bomb = new GameObject(new string("player_bomb"),startx<<8,starty<<8,width,height,heading,plane->vx,plane->vy,so);
 	projectiles.push_back(bomb);
 }
 
@@ -591,17 +596,18 @@ void InGame::updatePlane(){
 	//Increase time since fired/bombed
 	plane->timeSinceFired++; //Increase time since last fired
 	plane->timeSinceBombed++;
-
-	//Check for landing
-	s16 angle = plane->getAngle();
+	
+	//Make sure heading is tied to sprite rotation
+	plane->getSpriteInfo()->setAngle(plane->getHeading());
+	s16 heading = plane->getHeading()>>8;
 
 	//Check for takeoff
-	if(plane->onRunway&&((plane->getX()+plane->width>runwayEnd&&angle==0)||(plane->getX()<runwayStart&&angle==256))&&plane->takingOff==1){
+	if(plane->onRunway&&((plane->getX()+plane->width>runwayEnd&&heading==0)||(plane->getX()<runwayStart&&heading==256))&&plane->takingOff==1){
 		if(plane->speed<MINPLANESPEED){planeCrash();return;}	//Crash if we have reached the end of runway and we are not fast enough
 		plane->onRunway=0;
 		plane->takingOff=0;
-		if(angle==256){plane->angle=246<<8;}
-		else{plane->angle=10<<8;}
+		if(heading==256){plane->heading=246<<8;}
+		else{plane->setHeading(10<<8);}
 	}
 
 	s32 vy = plane->vy;
@@ -646,8 +652,8 @@ void InGame::updatePlane(){
 			plane->takingOff=0;
 			plane->restock();
 			//Flip planes current facing
-			if(angle>128&&angle<384){plane->angle=0<<8;}
-			else{plane->angle=256<<8;}
+			if(heading>128&&heading<384){plane->setHeading(0);}
+			else{plane->setHeading(256<<8);}
 		}
 		//Make sure we dont exceed min speed when taking off
 		if(speed>MINPLANESPEED&&plane->takingOff==1){speed=MINPLANESPEED;}
@@ -655,30 +661,29 @@ void InGame::updatePlane(){
 	
 	//Recalculate xv and yv
 	if(plane->totalFuel>0){
-		plane->vx = (PA_Cos(angle)*speed)>>8;
-		plane->vy = (-PA_Sin(angle)*speed)>>8;
+		plane->vx = (PA_Cos(heading)*speed)>>8;
+		plane->vy = (-PA_Sin(heading)*speed)>>8;
 	}
 	else{
 		plane->vy+=GRAVITY;
-		plane->angle=(PA_GetAngle(plane->x,plane->y,plane->x+plane->vx,plane->y+plane->vy)<<8);
+		plane->setHeading(PA_GetAngle(plane->x,plane->y,plane->x+plane->vx,plane->y+plane->vy)<<8);
 	}	//Hurtle towards earth if no fuel
 
 	plane->x+=plane->vx;
 	plane->y+=plane->vy;
-	
 	plane->speed=speed;
 
 	u16 contactingRunway = (plane->getX()>runwayStart&&plane->getX()<runwayEnd)&&planeLandscapeCollision();
 
 	//If plane is currently in the air and is contacting the runway
 	if((plane->takingOff==0&&contactingRunway)){
-		if((angle>255&&angle<281)||(angle>486)){
+		if((heading>255&&heading<281)||(heading>486)){
 			if(plane->speed>MINPLANESPEED+100){planeCrash();return;}//Need to be going at slowly to land
 			plane->takingOff=-1;
 			plane->onRunway=1;
 			plane->y=(runwayHeight+12)<<8;
-			if(angle>128&&angle<384){plane->angle=256<<8;}
-			else{plane->angle=0;}
+			if(heading>128&&heading<384){plane->setHeading(256<<8);}
+			else{plane->setHeading(0);}
 		}
 		else{
 			planeCrash();return; //Crash since we came at the runway at to steep angle
@@ -687,25 +692,26 @@ void InGame::updatePlane(){
 
 	//If the plane is going to be completely rendered above the y threshold reflect its current angle
 	if(plane->getY()<(SHEIGHT-currentLevel->levelHeight)-50){
-		plane->angle=reflectOverNormal(plane->getAngle(),384)<<8;
+		plane->setHeading(reflectOverNormal(plane->getHeading()>>8,384)<<8);
 	}
 
 	//If the plane is going to be completely off the x axis the reflect its current angle
 	if(plane->getX()+32<-5){
-		plane->angle=reflectOverNormal(plane->getAngle(),0)<<8;
+		plane->setHeading(reflectOverNormal(plane->getHeading()>>8,0)<<8);
 	}
 
 	else if(plane->getX()>currentLevel->levelWidth+5){
-		plane->angle=reflectOverNormal(plane->getAngle(),256)<<8;
+		plane->setHeading(reflectOverNormal(plane->getHeading()>>8,256)<<8);
 	}
+	if(planeLandscapeCollision()&&plane->takingOff==0&&!contactingRunway)planeCrash();
 }
 
 void InGame::updateViewport(){
-	u16 angle = plane->getAngle();
-	s16 xflipped = (angle>128&&angle<384)? -1:1;
+	u16 heading = (plane->getHeading()>>8);
+	s16 xflipped = (heading>128&&heading<384)? -1:1;
 	
 	//Viewport calculations using simulated float accuracy
-	s16 xComponent = PA_Cos(angle);
+	s16 xComponent = PA_Cos(heading);
 	u16 adjust = (plane->getSpeed()<MINPLANESPEED)? plane->getSpeed():MINPLANESPEED;
 	viewportx = plane->x+(16<<8)-((SWIDTH/2)<<8)+((plane->vx)*40)-((xComponent*((adjust)*40))>>8);
 	viewporty = plane->y-((SHEIGHT/2)<<8);
@@ -734,11 +740,21 @@ void InGame::updateProjectiles(){
 		projectile->x += projectile->vx;
 		projectile->y += projectile->vy;
 
+		s16 px = projectile->getX();
+		s16 py = projectile->getY();
+		s16 vx = projectile->vx;
+		s16 vy = projectile->vy;
+
+		u16 currentHeading = PA_GetAngle(px<<8,py<<8,(px<<8)+vx,(py<<8)+vy);
+		projectile->setHeading(currentHeading<<8);
+		projectile->getSpriteInfo()->setAngle(currentHeading<<8);
+
 		s16 bx = projectile->getX();
 		s16 by = projectile->getY();
 		
 		u16 hitLandscape = landscapeCollision(bx,by);
 		if(bx>currentLevel->levelWidth||bx<0||by<0-(currentLevel->levelHeight-SHEIGHT)||hitLandscape){
+			
 			//This to be replace with hashtable lookup for sound (char*,char* --> void*)
 			if(hitLandscape&&strcmp(projectile->name->c_str(),"player_bomb")==0){
 				PA_PlaySound(PA_GetFreeSoundChannel(),player_bombhit_sfx,(u32)player_bombhit_sfx_size,127,44100);
@@ -771,7 +787,8 @@ void InGame::updateParticles(){
 		ParticleObject* po = (*it);
 		//Update ttl and current position and current angle
 		po->ttl--;
-		po->angle=wrapAngleShifted(po->angle+po->rotSpeed);
+		SpriteInfo* si = po->getSpriteInfo();
+		si->setAngle(wrapAngleShifted(si->getAngle()+po->rotSpeed));
 		po->x+=po->vx;
 		po->y+=po->vy;
 		if(po->getX()>0&&po->getX()<currentLevel->levelWidth){
@@ -781,8 +798,8 @@ void InGame::updateParticles(){
 		}
 		if(po->ttl==0){
 			//Delete particle and recover rot index and sprie index
-			s16 spriteIndex = po->spriteIndex;
-			s16 rotIndex = po->rotIndex;
+			s16 spriteIndex = si->getSpriteIndex();
+			s16 rotIndex = si->getRotIndex();
 
 			if(spriteIndex!=-1){
 				spritePool.push_back(spriteIndex);
@@ -809,12 +826,14 @@ bool InGame::particleLandscapeCollision(ParticleObject* po){
 		return false;
 	}
 	
+	SpriteInfo* si = po->getSpriteInfo();
+
 	//Ok so we know we are close enough so start with getting the center of the particle as reference
-	s32 cx = po->x+((po->width/2)<<8);
-	s32 cy = po->y+((po->width/2)<<8);
+	s32 cx = po->x+((si->getSpriteWidth()/2)<<8);
+	s32 cy = po->y+((si->getSpriteHeight()/2)<<8);
 	
 	//What angle is particle currently facing towards
-	s16 facingAngle = po->getAngle();
+	s16 facingAngle = si->getAngle();
 	s16 facingComponentx = PA_Cos(facingAngle);
 	s16 facingComponenty = -PA_Sin(facingAngle);
 	s16 facingLeft = (facingAngle>128&&facingAngle<384)? 1:-1;
@@ -823,9 +842,9 @@ bool InGame::particleLandscapeCollision(ParticleObject* po){
 	u16 headingAngle =  PA_GetAngle(po->x,po->y, po->x+po->vx,po->y+po->vy);
 	
 	//Get the top and bottom middle of the particle
-	s16 topNormal = wrapAngle(po->getAngle()+(-128*facingLeft));
-	s16 bottomNormal = wrapAngle(po->getAngle()+(128*facingLeft));
-	u16 radius = (po->width/2)/(po->zoom/256);
+	s16 topNormal = wrapAngle(facingAngle+(-128*facingLeft));
+	s16 bottomNormal = wrapAngle(facingAngle+(128*facingLeft));
+	u16 radius = po->getObjectWidth()/2;
 
 	s16 componentxTop = PA_Cos(topNormal); 
 	s16 componentyTop = -PA_Sin(topNormal);
@@ -911,6 +930,8 @@ inline u16 InGame::wrapAngleShifted(s32 angle){
 Do drawing function
 **/
 void InGame::doDrawing(void){	
+	//Clear bg so we can draw on screen!
+	PA_Clear8bitBg(0);
 
 	//Draw plane
 	drawPlane();
@@ -927,32 +948,38 @@ void InGame::doDrawing(void){
 	//Draw particle
 	drawParticles();
 }
+/**
+This does not use drawObject function since it has to do quirky
+animations based on its current heading!
+**/
 void InGame::drawPlane(){
 	if(plane->crashed)return;
 	//Rotate plane and set animation frame
-	u16 angle = plane->getAngle();
-	PA_SetRotset(0, plane->rotIndex, angle,256,256);
-	if(angle<256){
-		if(angle<=68){
+	SpriteInfo* si = plane->getSpriteInfo();
+	u16 heading = (plane->getHeading()>>8);
+	PA_SetRotset(0, si->getRotIndex(), heading,si->getZoom(),si->getZoom());
+	PA_SetSpriteDblsize(0,si->getSpriteIndex(),si->getDoubleSize());
+	if(heading<256){
+		if(heading<=68){
 			PA_SetSpriteAnim(0, 0, 0);
 		}
-		else if(angle>=188){
+		else if(heading>=188){
 			PA_SetSpriteAnim(0, 0, 12);
 		}
 		else{
-			u16 frame = ((angle-68)/10)+1;
+			u16 frame = ((heading-68)/10)+1;
 			PA_SetSpriteAnim(0, 0, frame);
 		}
 	}
 	else{
-		if(angle>=444){
+		if(heading>=444){
 			PA_SetSpriteAnim(0, 0, 0);
 		}
-		else if(angle<=324){
+		else if(heading<=324){
 			PA_SetSpriteAnim(0, 0, 12);
 		}
 		else{
-			u16 frame = 12-(((angle-324)/10)+1);
+			u16 frame = 12-(((heading-324)/10)+1);
 			PA_SetSpriteAnim(0, 0, frame);
 		}
 	}
@@ -962,7 +989,7 @@ void InGame::drawPlane(){
 	
 	//Dont draw it if its offscreen
 	if(planex+32<0||planex>SWIDTH||planey+32<0||planey>SHEIGHT){return;}
-	PA_SetSpriteXY(0,plane->spriteIndex, planex, planey);
+	PA_SetSpriteXY(0,si->getSpriteIndex(), planex, planey);
 }
 void InGame::drawRunway(){
 
@@ -971,47 +998,19 @@ void InGame::drawRunway(){
 
 	while( it != runwayObjects.end()){
 		GameObject* runwayPiece = (GameObject*)(*it);
-		drawObject(runwayPiece,false,256,2);
+		drawObject(runwayPiece,2);
 		it++;
 	}
 
 }
 void InGame::drawProjectiles(){
-	PA_Clear8bitBg(0);
 
 	vector<GameObject*>::iterator it;
 	it = projectiles.begin();
-	
-	s32 offsetx = (-getViewPortX());
-	s32 offsety = (-getViewPortY());
 
 	while( it != projectiles.end()) {
 		GameObject* projectile = (GameObject*)(*it);
-		s32 bx = projectile->getX();
-		s32 by = projectile->getY();
-		if(bx+offsetx<0||bx+offsetx>SWIDTH){it++;continue;}
-		if(by+offsety<0||by+offsety>SHEIGHT){it++;continue;}
-
-		s16 vx = projectile->vx;
-		s16 vy = projectile->vy;
-
-		u16 currentAngle = PA_GetAngle(bx<<8,by<<8,(bx<<8)-vx,(by<<8)-vy);
-		s16 componentx = PA_Cos(currentAngle);
-		s16 componenty = -PA_Sin(currentAngle);
-
-		s16 xflipped = (componentx <0)? -1:1;
-		s16 yflipped = (componenty <0)? -1:1;
-
-		s32 screenxEnd =  bx+offsetx;
-		s32 screenyEnd =  by+offsety;
-		
-		s16 screenxStart = bx + ((((abs(componentx)*6))>>8)*xflipped)+offsetx;
-		s16 screenyStart = by + ((((abs(componenty)*6))>>8)*yflipped)+offsety;
-		
-		if(projectile->spriteIndex==-1){
-			PA_Draw8bitLineEx (0,screenxStart,screenyStart,screenxEnd,screenyEnd,5,projectile->width);		
-		}
-		//Else draw sprite rotated with its rotset
+		drawObject(projectile,1);
 		it++;
 	}
 }
@@ -1023,31 +1022,33 @@ void InGame::drawParticles(){
 
 	while( it != particles.end()) {
 		ParticleObject* po = (*it);
-		drawObject(po,true,po->zoom,1);
+		drawObject(po,1);
 		it++;
 	}
 }
 
-void InGame::drawObject(GameObject* go,bool usesRot,u16 zoom,u16 priority){
+void InGame::drawObject(GameObject* go,u16 priority){
 		//Do dynamic allocation/deallocation of sprite indexes and rot indexes
 		s16 finalx = go->getX()-getViewPortX();
 		s16 finaly = go->getY()-getViewPortY();
 
-		s16 spriteIndex = go->spriteIndex;
-		s16 rotIndex = go->rotIndex;
-		u16 width = go->width;
-		u16 height = go->height;
+		SpriteInfo* si = go->getSpriteInfo();
+
+		s16 spriteIndex = si->getSpriteIndex();
+		s16 rotIndex = si->getRotIndex();
+		u16 width = si->getSpriteWidth();
+		u16 height = si->getSpriteHeight();
 
 		//Check if particle is offscreen...if so make sure it doesnt have a sprite index
 		if(finalx+width<0||finalx>SWIDTH||finaly>SHEIGHT||finaly+height<0){
 			//If piece has a spite index put it back into sprite pool
 			if(spriteIndex!=-1){
-				go->spriteIndex=-1;
+				si->setSpriteIndex(-1);
 				spritePool.push_back(spriteIndex);
 				PA_SetSpriteY(0, spriteIndex, 193);	//Hide sprite until its used again
 			}
-			if(go->rotIndex!=-1&&usesRot){
-				go->rotIndex=-1;
+			if(si->getRotIndex()!=-1&&si->getUsesRot()){
+				si->setRotIndex(-1);
 				rotPool.push_back(rotIndex);
 				PA_SetSpriteRotDisable(spriteIndex,spriteIndex);
 			}
@@ -1055,27 +1056,39 @@ void InGame::drawObject(GameObject* go,bool usesRot,u16 zoom,u16 priority){
 		//If its on screen test if it has a sprite index yet
 		else{
 			//It needs a sprite index assign one
-			if(spriteIndex==-1){
+			if(spriteIndex==-1&&si->getUsesSprite()){
 				spriteIndex = spritePool.back();
 				spritePool.pop_back();
-				go->spriteIndex=spriteIndex;
-				PA_CreateSpriteFromGfx(0, spriteIndex,go->gfxref,go->objsize[0],go->objsize[1], 1, go->palette,finalx,finaly);
+				si->setSpriteIndex(spriteIndex);
+				PA_CreateSpriteFromGfx(0, spriteIndex,si->getGfxRef(),si->getObjSize()[0],si->getObjSize()[1], 1,si->getPaletteIndex(),finalx,finaly);
 			}
 			//It already has a sprite index to move it
-			else{
+			else if(si->getUsesSprite()){
 				PA_SetSpritePrio(0,spriteIndex,priority);
-				//PA_SetSpriteDblsize(0,spriteIndex,doubleSize);
+				PA_SetSpriteDblsize(0,spriteIndex,si->getDoubleSize());
 				PA_SetSpriteXY(0,spriteIndex,finalx,finaly);
 			}
-			if(rotIndex==-1&&usesRot){	//Make sure it has a rot index and enable rotation for that index
+			//Draw object as line
+			else{
+				u16 currentHeading = go->getHeading()>>8;
+				s16 componentx = PA_Cos(currentHeading);
+				s16 componenty = -PA_Sin(currentHeading);
+
+				s16 beginx = finalx - ((componentx*go->height)>>8);
+				s16 beginy = finaly - ((componenty*go->height)>>8);
+				
+				PA_Draw8bitLineEx (0,beginx,beginy,finalx,finaly,si->getPaletteIndex(),go->getObjectWidth());	
+			
+			}
+			if(rotIndex==-1&&si->getUsesRot()){	//Make sure it has a rot index and enable rotation for that index
 				rotIndex = rotPool.back();
 				rotPool.pop_back();
-				go->rotIndex=rotIndex;
+				si->setRotIndex(rotIndex);
 				PA_SetSpriteRotEnable(0, spriteIndex,rotIndex);
-				PA_SetRotset(0, go->rotIndex, go->getAngle(),zoom,zoom);
+				PA_SetRotset(0, rotIndex, si->getAngle()>>8,si->getZoom(),si->getZoom());
 			}
-			else if(usesRot){
-				PA_SetRotset(0, go->rotIndex, go->getAngle(),zoom,zoom);
+			else if(si->getUsesRot()){
+				PA_SetRotset(0, si->getRotIndex(), si->getAngle()>>8,si->getZoom(),si->getZoom());
 			}
 		}
 }
@@ -1156,33 +1169,31 @@ u16 InGame::smaller(u16 a,u16 b){
 	return(a>b)? a:b;
 }
 
-/**
-Do collisions function
-**/
-void InGame::doCollisions(){
-	//Plane landscape collision...returns boolean to make calculating landing easier
-	if(planeLandscapeCollision())planeCrash();
-}
-
 u16 InGame::planeLandscapeCollision(){
 	if(plane->onRunway){return 0;}
 
 	//First get the bottom middle
-	s16 currentAngle = plane->getAngle();
-	s16 normalAdjust = (currentAngle<128||currentAngle>384)? -128:128;
+	s16 currentHeading = (plane->getHeading()>>8);
+	s16 normalAdjust = (currentHeading<128||currentHeading>384)? -128:128;
 
-	s16 normalAngle = currentAngle+normalAdjust;
+	s16 normalAngle = currentHeading+normalAdjust;
 
 	if(normalAngle<0)normalAngle+=512;
 	if(normalAngle>511)normalAngle &= 512;
 
-	s16 bottomx = ((PA_Cos(normalAngle) * (plane->height/2))>>8)+plane->getX()+16;
-	s16 bottomy = ((-PA_Sin(normalAngle) * (plane->height/2))>>8)+plane->getY()+16;
+	SpriteInfo* si = plane->getSpriteInfo();
 	
-	s16 xComponent =PA_Cos(plane->getAngle());
-	s16 yComponent =-PA_Sin(plane->getAngle());
+	//Get center of sprite
+	u16 cx = plane->getX()+(si->getSpriteWidth()/2);
+	u16 cy = plane->getY()+(si->getSpriteHeight()/2);
 
-	u16 planeRadius = plane->width/2;
+	s16 bottomx = cx+((PA_Cos(normalAngle) * (plane->getObjectHeight()/2))>>8);
+	s16 bottomy = cy+((-PA_Sin(normalAngle) * (plane->getObjectHeight()/2))>>8);
+	
+	s16 xComponent =PA_Cos(plane->getHeading()>>8);
+	s16 yComponent =-PA_Sin(plane->getHeading()>>8);
+
+	u16 planeRadius = plane->getObjectWidth()/2;
 
 	//Now extend from bottom middle half the length of the plane along the curent vector
 	s16 tipxFront = bottomx+((xComponent*planeRadius)>>8);
@@ -1249,13 +1260,14 @@ void InGame::planeCrash(){
 	plane->crashed=true;
 	PA_SetSpriteY(0, 0, 193);	// Hide sprite
 	planeCrashParticles();
-	u16 plane_gfx = plane->gfxref;	//Make sure that plane has right gfx ref
+	u16 plane_gfx = plane->getSpriteInfo()->getGfxRef();
 	delete plane;
 	u16 temp[] = {OBJ_SIZE_32X32};
 	u16* objsize = new u16[2];
 	objsize[0] = temp[0];
 	objsize[1] = temp[1];
-	plane = new PlaneObject(runwayStart<<8,(runwayHeight+12)<<8,16,8,objsize,0,plane_gfx,0,0,0,9,60);
+	SpriteInfo* so = new SpriteInfo(32,32,0,plane_gfx,0,0,0,objsize,256,0,true);
+	plane = new PlaneObject(runwayStart<<8,(runwayHeight+12)<<8,16,8,0,0,0,9,60,so);
 	scrollBackToRunway();
 }
 void InGame::planeCrashParticles(){
@@ -1293,7 +1305,8 @@ void InGame::planeCrashParticles(){
 		u16 zoom=512;
 		
 		//Yey new particle
-		particles.push_back(new ParticleObject(name,startx,starty,width,height,objsize,spriteIndex,palette,gfxref,currentAngle,rotspeed,rotIndex,particlevx,particlevy,ttl,heavy,zoom));
+		SpriteInfo* so = new SpriteInfo(width,height,currentAngle,gfxref,spriteIndex,rotIndex,palette,objsize,zoom,0,true);
+		particles.push_back(new ParticleObject(name,startx,starty,width,height,currentAngle,rotspeed,particlevx,particlevy,ttl,heavy,so));
 	}
 
 	
@@ -1313,7 +1326,7 @@ void InGame::planeCrashParticles(){
 }
 
 void InGame::scrollBackToRunway(){
-	s16 xComponent = PA_Cos(plane->getAngle());
+	s16 xComponent = PA_Cos(plane->getHeading()>>8);
 	u16 adjust = (plane->getSpeed()<MINPLANESPEED)? plane->getSpeed():MINPLANESPEED;
 
 	s32 targetviewportx = plane->x+(16<<8)-((SWIDTH/2)<<8)+((plane->vx)*40)-((xComponent*((adjust)*40))>>8);
@@ -1353,11 +1366,12 @@ void InGame::print_debug(void){
 	PA_OutputText(1,0, 2, "Plane x:%d (%d) y:%d (%d)", plane->getX(),plane->x,plane->getY(),plane->y);
 	PA_OutputText(1,0, 3, "Plane vx:%d vy:%d", plane->vx,plane->vy);
 	PA_OutputText(1,0, 4, "Plane speed:%d (%d)", plane->getSpeed(),plane->speed);
-	PA_OutputText(1,0, 5, "Plane angle:%d (%d)", plane->getAngle(),plane->angle);
+	PA_OutputText(1,0, 5, "Plane heading:%d (%d)", plane->getHeading()>>8);
 	PA_OutputText(1,0, 6, "Landscape sprites used:%d", landscapeIndexs.size());
 	PA_OutputText(1,0, 7, "Available sprites:%d", spritePool.size());
 	PA_OutputText(1,0, 8, "Plane taking off:%d", plane->takingOff);
 	PA_OutputText(1,0, 9, "Particle count:%d", particles.size());
 	PA_OutputText(1,0, 10,"Rot pool size:%d", rotPool.size());
 	PA_OutputText(1,0, 11,"Bombs: %d Ammo: %d Fuel: %d Health %d",plane->totalBombs,plane->totalAmmo,plane->totalFuel,plane->totalHealth);
+	PA_OutputText(1,0, 13,"Test %d %d",plane->getObjectHeight(),plane->getObjectWidth());
 }

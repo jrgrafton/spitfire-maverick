@@ -74,6 +74,10 @@
 				RelativePath=".\source\splash.cpp"
 				>
 			</File>
+			<File
+				RelativePath=".\source\sprite_info.cpp"
+				>
+			</File>
 		</Filter>
 		<Filter
 			Name="Header Files"
@@ -106,6 +110,10 @@
 			</File>
 			<File
 				RelativePath=".\header\splash.h"
+				>
+			</File>
+			<File
+				RelativePath=".\header\sprite_info.h"
 				>
 			</File>
 			<File
