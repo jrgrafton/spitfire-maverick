@@ -4,6 +4,7 @@
 #include "../header/sprite_info.h"
 #include "../header/plane_object.h"
 #include "../header/particle_object.h"
+#include "../header/destructable_object.h"
 #include "../header/level.h"
 #include "../header/state.h"
 #include "../header/in_game.h"
@@ -39,15 +40,16 @@ vector<GameObject*> projectiles;
 vector<ParticleObject*> particles;
 u16 planePartgfx;					//Store ref to particle gfx for when we create them
 
-//Landscape objects
-
-
 //Sprite pool of available indexes
 vector<u16> spritePool;
 vector<u16> rotPool; //Pool of available rotsets
 
-//vector of indexes taken by landscape
+//vector of indexes taken by landscape tiles
 vector<u16> landscapeIndexs;
+
+//Landscape Object stuff
+DestructableObject* landscapeReferenceObjects[6];
+vector<DestructableObject*> landscapeObjects;
 
 //View port
 s32 viewportx =0;
@@ -158,6 +160,7 @@ void InGame::initGraphics(){
 	PA_LoadSpritePal(0,1,(void*)grass_image_Pal);
 	PA_LoadSpritePal(0,2,(void*)runway_image_Pal);
 	PA_LoadSpritePal(0,3,(void*)particles_image_Pal);
+	PA_LoadSpritePal(0,4,(void*)landscape_allobjects_Pal);
 
 	//Init gfx ref for particles
 	planePartgfx = PA_CreateGfx(0, (void*)plane_piece_particles_image_Sprite, OBJ_SIZE_8X8, 1);
@@ -167,6 +170,79 @@ void InGame::initGraphics(){
 	PA_EasyBgLoad(0, 2, background_image);
 	PA_SetBgPrio(0,2,3);
 	PA_InitSpriteExtPrio(1); // Enable extended priorities
+
+	//Init landscape lookup
+	initLanscapeLookup();
+}
+void InGame::addLandscapeObject(s32 x,u16 ref){
+	DestructableObject* object = new DestructableObject(*landscapeReferenceObjects[ref]);
+	s32 y = getHeightAtPoint(x+object->getSpriteInfo()->getSpriteWidth()/2);
+	object->setLocation(x<<8,(y-object->getObjectHeight()+2)<<8); //Plus 2 to make sure its properly in ground
+	landscapeObjects.push_back(object);
+}
+
+void InGame::initLanscapeLookup(){
+	//Go through loading in all landscape objects for later lookup
+	//Doesnt matter that all objects are pointing to same sources...since they are only being
+	//Used for lookup purposes and copy constructor does deep copy!
+	u16 temp8X8[] = {OBJ_SIZE_8X8};
+	u16* objectsize8X8 = new u16[2];
+	objectsize8X8[0] = temp8X8[0];
+	objectsize8X8[1] = temp8X8[1];
+	
+	u16 temp32X32[] = {OBJ_SIZE_32X32};
+	u16* objectsize32X32 = new u16[2];
+	objectsize32X32[0] = temp32X32[0];
+	objectsize32X32[1] = temp32X32[1];
+
+	u16 temp32X64[] = {OBJ_SIZE_32X64};
+	u16* objectsize32X64 = new u16[2];
+	objectsize32X64[0] = temp32X64[0];
+	objectsize32X64[1] = temp32X64[1];
+	
+	//Now create all gfx ref
+	u16 particleGfx = PA_CreateGfx(0, (void*)plane_piece_particles_image_Sprite, OBJ_SIZE_8X8, 1);
+
+
+	u16 treeOneGfx = PA_CreateGfx(0, (void*)tree1_image_Sprite, OBJ_SIZE_32X32, 1);
+	u16 treeTwoGfx = PA_CreateGfx(0, (void*)tree2_image_Sprite, OBJ_SIZE_32X32, 1);
+	u16 treeThreeGfx = PA_CreateGfx(0, (void*)tree3_image_Sprite, OBJ_SIZE_32X32, 1);
+	u16 treeFourGfx = PA_CreateGfx(0, (void*)tree4_image_Sprite, OBJ_SIZE_32X32, 1);
+	u16 towerAlliesGfx = PA_CreateGfx(0, (void*)tower_allies_image_Sprite, OBJ_SIZE_32X64, 1);
+	u16 towerGermanGfx = PA_CreateGfx(0, (void*)tower_german_image_Sprite, OBJ_SIZE_32X64, 1);
+	
+	//Now create all particle sprite info objects
+	SpriteInfo* treeParticle = new SpriteInfo(8,8,0,particleGfx,-1,-1,3,temp8X8,256,0,true);
+	SpriteInfo* towerParticle = new SpriteInfo(8,8,0,particleGfx,-1,-1,3,temp8X8,256,0,true);
+
+	s16 destroyedGfxRef=-1;//THIS NEEDS TO BE CHANGED SO THAT ALL LANDSCAPE OBJECTS HAVE DESTROYED GFX REFS
+	
+	//Now go onto create all landscape objects with their sprite info objects
+	SpriteInfo* treeSpriteOneInfo = new SpriteInfo(32,32,0,treeOneGfx,-1,-1,4,objectsize32X32,256,0,false);
+	DestructableObject* treeObjectOne = new DestructableObject(0,0,32,32,0,0,0,treeSpriteOneInfo,100,5,destroyedGfxRef,treeParticle);
+	
+	SpriteInfo* treeSpriteTwoInfo = new SpriteInfo(32,32,0,treeTwoGfx,-1,-1,4,objectsize32X32,256,0,false);
+	DestructableObject* treeObjectTwo = new DestructableObject(0,0,32,32,0,0,0,treeSpriteTwoInfo,100,5,destroyedGfxRef,treeParticle);
+	
+	SpriteInfo* treeSpriteThreeInfo = new SpriteInfo(32,32,0,treeThreeGfx,-1,-1,4,objectsize32X32,256,0,false);
+	DestructableObject* treeObjectThree = new DestructableObject(0,0,32,32,0,0,0,treeSpriteThreeInfo,100,5,destroyedGfxRef,treeParticle);
+	
+	SpriteInfo* treeSpriteFourInfo = new SpriteInfo(32,32,0,treeFourGfx,-1,-1,4,objectsize32X32,256,0,false);
+	DestructableObject* treeObjectFour = new DestructableObject(0,0,32,32,0,0,0,treeSpriteFourInfo,100,5,destroyedGfxRef,treeParticle);
+	
+	SpriteInfo* towerAlliesSpriteInfo = new SpriteInfo(32,64,0,towerAlliesGfx,-1,-1,4,objectsize32X64,256,0,false);
+	DestructableObject* towerAlliesObject = new DestructableObject(0,0,32,64,0,0,0,towerAlliesSpriteInfo,100,5,destroyedGfxRef,towerParticle);
+	
+	SpriteInfo* towerGermanSpriteInfo = new SpriteInfo(32,64,0,towerGermanGfx,-1,-1,4,objectsize32X64,256,0,false);
+	DestructableObject* towerGermanObject = new DestructableObject(0,0,32,64,0,0,0,towerGermanSpriteInfo,100,5,destroyedGfxRef,towerParticle);
+
+	//Now put all objects in an array to be looked up
+	landscapeReferenceObjects[5] = treeObjectOne;
+	landscapeReferenceObjects[4] = treeObjectTwo;
+	landscapeReferenceObjects[3] = treeObjectThree;
+	landscapeReferenceObjects[2] = treeObjectFour;
+	landscapeReferenceObjects[1] = towerAlliesObject;
+	landscapeReferenceObjects[0] = towerGermanObject;
 }
 
 void InGame::initLevel(){
@@ -368,6 +444,15 @@ void InGame::initLevel(){
 
 		//Init runway
 		initRunway();
+
+		//Test landscape algorithm
+		addLandscapeObject(850,0);
+		addLandscapeObject(900,1);
+		addLandscapeObject(950,2);
+		addLandscapeObject(1000,3);
+		addLandscapeObject(1050,4);
+		addLandscapeObject(1100,5);
+
 	#endif
 }
 
@@ -519,33 +604,42 @@ void InGame::addPlayerBullet(){
 	void* sound = player_gun_sfx[soundIndex];
 	s32 sound_size = player_gun_sfx_size[soundIndex];
 	PA_PlaySound(PA_GetFreeSoundChannel(),sound,sound_size,127,44100);
+
+	SpriteInfo* planeSo = plane->getSpriteInfo();
 	
 	plane->totalAmmo--;
 
 	s16 componentx = PA_Cos(plane->getHeading()>>8);
 	s16 componenty = -PA_Sin(plane->getHeading()>>8);
+	
+	s32 cx = plane->x+((planeSo->getSpriteWidth()/2)<<8);
+	s32 cy = plane->y+((planeSo->getSpriteHeight()/2)<<8);
 
-	s32 startx = plane->x+(16<<8)+(componentx*((plane->getObjectWidth()+4)/2));
-	s32 starty = plane->y+(15<<8)+(componenty*((plane->getObjectWidth()+4)/2));
+	s32 startx = cx+(componentx*(plane->getObjectWidth()/2));
+	s32 starty = cy+(componenty*(plane->getObjectWidth()/2));
 	
 	u16 width =1;
 	u16 height =6;
 	s32 heading = plane->getHeading()>>8;
 
 	s16 vx = (PA_Cos(heading)*(plane->speed+1000)>>8);
-	s16 vy = (-PA_Sin(heading)*(plane->speed+1000)>>8);
+	s16 vy = (-PA_Sin(heading)*(plane->speed+1000)>>8)+PA_RandMax(64);
 	
 	u16* objsize = new u16[2];
 	
 	SpriteInfo* so = new SpriteInfo(-1,-1,0,-1,-1,-1,5,objsize,256,0,false);
 	GameObject* bullet = new GameObject(new string("player_bullet"),startx,starty,width,height,heading,vx,vy,so);
-	bullet->vy +=PA_RandMax(64);
 	projectiles.push_back(bullet);
 }
 
 void InGame::addPlayerBomb(){
 	PA_PlaySound(PA_GetFreeSoundChannel(),player_bomb_sfx,(u32)player_bomb_sfx_size,127,44100);
 	plane->totalBombs--;
+
+	SpriteInfo* planeSo = plane->getSpriteInfo();
+
+	s32 cx = plane->x+((planeSo->getSpriteWidth()/2)<<8);
+	s32 cy = plane->y+((planeSo->getSpriteHeight()/2)<<8);
 
 	//First get the bottom middle
 	s16 currentAngle = plane->getHeading()>>8;
@@ -556,8 +650,8 @@ void InGame::addPlayerBomb(){
 	if(normalAngle<0)normalAngle+=512;
 	if(normalAngle>511)normalAngle &= 512;
 
-	s16 startx = ((PA_Cos(normalAngle) * (plane->height/2))>>8)+plane->getX()+16;
-	s16 starty = ((-PA_Sin(normalAngle) * (plane->height/2))>>8)+plane->getY()+16;
+	s32 startx = cx+(PA_Cos(normalAngle) * (plane->getObjectHeight()/2));
+	s32 starty = cy+(-PA_Sin(normalAngle) * (plane->getObjectHeight()/2));
 	
 	u16 width =2;
 	u16 height =6;
@@ -568,7 +662,7 @@ void InGame::addPlayerBomb(){
 	
 	//u16 width,u16 height,s32 angle,u16 gfxref,s16 rotIndex,s16 palette,u16* objsize,u16 zoom,u16 doubleSize bool usesRot
 	SpriteInfo* so = new SpriteInfo(-1,-1,0,-1,-1,-1,5,objsize,256,0,false);
-	GameObject* bomb = new GameObject(new string("player_bomb"),startx<<8,starty<<8,width,height,heading,plane->vx,plane->vy,so);
+	GameObject* bomb = new GameObject(new string("player_bomb"),startx,starty,width,height,heading,plane->vx,plane->vy,so);
 	projectiles.push_back(bomb);
 }
 
@@ -665,7 +759,8 @@ void InGame::updatePlane(){
 		plane->vy = (-PA_Sin(heading)*speed)>>8;
 	}
 	else{
-		plane->vy+=GRAVITY;
+		if(plane->vx>0)plane->vx--;
+		if(plane->vy<MAXPLANESPEED)plane->vy+=GRAVITY;
 		plane->setHeading(PA_GetAngle(plane->x,plane->y,plane->x+plane->vx,plane->y+plane->vy)<<8);
 	}	//Hurtle towards earth if no fuel
 
@@ -723,7 +818,7 @@ void InGame::updateViewport(){
 	if(getViewPortY()>0){viewporty=0;}
 	
 	//Scroll background
-	if(getViewPortX()>0&&getViewPortX()+SWIDTH<currentLevel->levelWidth){
+	if(getViewPortX()>0&&getViewPortX()+SWIDTH<currentLevel->levelWidth&&!plane->crashed){
 		bgscroll+=(((abs(plane->vx)*(plane->speed)>>8))/7*xflipped);
 		PA_BGScrollX(0,2,bgscroll>>8);
 	}
@@ -939,13 +1034,16 @@ void InGame::doDrawing(void){
 	//Draw runway
 	drawRunway();
 
-	//Render landscape
-	drawLandscape();
+	//Draw landscape tiles
+	drawLandscapeTiles();
 
-	//Render projectiles
+	//Draw landscape objects
+	drawLandscapeObjects();
+
+	//Draw projectiles
 	drawProjectiles();
 
-	//Draw particle
+	//Draw particles
 	drawParticles();
 }
 /**
@@ -1027,6 +1125,17 @@ void InGame::drawParticles(){
 	}
 }
 
+void InGame::drawLandscapeObjects(){
+	vector<DestructableObject*>::iterator it;
+	it = landscapeObjects.begin();
+
+	while( it != landscapeObjects.end()) {
+		DestructableObject* lo = (*it);
+		drawObject(lo,4);
+		it++;
+	}
+}
+
 void InGame::drawObject(GameObject* go,u16 priority){
 		//Do dynamic allocation/deallocation of sprite indexes and rot indexes
 		s16 finalx = go->getX()-getViewPortX();
@@ -1064,7 +1173,7 @@ void InGame::drawObject(GameObject* go,u16 priority){
 			}
 			//It already has a sprite index to move it
 			else if(si->getUsesSprite()){
-				PA_SetSpritePrio(0,spriteIndex,priority);
+				PA_SetSpriteExtPrio(0,spriteIndex,priority);
 				PA_SetSpriteDblsize(0,spriteIndex,si->getDoubleSize());
 				PA_SetSpriteXY(0,spriteIndex,finalx,finaly);
 			}
@@ -1076,6 +1185,9 @@ void InGame::drawObject(GameObject* go,u16 priority){
 
 				s16 beginx = finalx - ((componentx*go->height)>>8);
 				s16 beginy = finaly - ((componenty*go->height)>>8);
+
+				if(beginx<0){beginx=0;}
+				if(beginy<0){beginy=0;}
 				
 				PA_Draw8bitLineEx (0,beginx,beginy,finalx,finaly,si->getPaletteIndex(),go->getObjectWidth());	
 			
@@ -1093,7 +1205,7 @@ void InGame::drawObject(GameObject* go,u16 priority){
 		}
 }
 
-void InGame::drawLandscape(){
+void InGame::drawLandscapeTiles(){
 	
 	//Reset old landscape before rendering new one
 	resetLandscape();
@@ -1122,7 +1234,7 @@ void InGame::drawLandscape(){
 				PA_SetSpriteHflip(0, availableIndex, flipped); // (screen, sprite, flip(1)/unflip(0)) HFlip -> Horizontal flip
 				//Add index to list used by landscape
 				landscapeIndexs.push_back(availableIndex);
-				PA_SetSpritePrio(0,availableIndex,3);
+				PA_SetSpriteExtPrio(0,availableIndex,3);
 				y+=32;
 				if(y>SHEIGHT)break;
 			}
@@ -1132,7 +1244,7 @@ void InGame::drawLandscape(){
 				spritePool.pop_back();					//Get available index
 				PA_CreateSpriteFromGfx(0,availableIndex,blackTile,OBJ_SIZE_16X32, 1, 1, x,y);
 				landscapeIndexs.push_back(availableIndex);
-				PA_SetSpritePrio(0,availableIndex,3);
+				PA_SetSpriteExtPrio(0,availableIndex,3);
 				y+=32;
 			}
 		}
@@ -1295,7 +1407,7 @@ void InGame::planeCrashParticles(){
 	for(u16 i=0;i<8;i++){
 		s32 startx = (plane->getX()+PA_RandMax(16))<<8;
 		if(i==7){startx=plane->x;}						//Last particle is created at planes current x for tracking reasons
-		s32 starty = (plane->getY()-8+PA_RandMax(16))<<8;
+		s32 starty = (plane->getY()+(plane->getObjectHeight()/2)+PA_RandMax(16))<<8;
 		s16 rotspeed = PA_RandMinMax(1400,2800);
 		if(PA_RandMax(1)){rotspeed = 0-rotspeed;}
 		s16 currentAngle = PA_RandMax(511<<8);
@@ -1365,13 +1477,11 @@ void InGame::print_debug(void){
 	PA_OutputText(1,0, 1, "Viewport x:%d (%d) y:%d (%d)", getViewPortX(),viewportx,getViewPortY(),viewporty);
 	PA_OutputText(1,0, 2, "Plane x:%d (%d) y:%d (%d)", plane->getX(),plane->x,plane->getY(),plane->y);
 	PA_OutputText(1,0, 3, "Plane vx:%d vy:%d", plane->vx,plane->vy);
-	PA_OutputText(1,0, 4, "Plane speed:%d (%d)", plane->getSpeed(),plane->speed);
-	PA_OutputText(1,0, 5, "Plane heading:%d (%d)", plane->getHeading()>>8);
-	PA_OutputText(1,0, 6, "Landscape sprites used:%d", landscapeIndexs.size());
-	PA_OutputText(1,0, 7, "Available sprites:%d", spritePool.size());
-	PA_OutputText(1,0, 8, "Plane taking off:%d", plane->takingOff);
-	PA_OutputText(1,0, 9, "Particle count:%d", particles.size());
-	PA_OutputText(1,0, 10,"Rot pool size:%d", rotPool.size());
-	PA_OutputText(1,0, 11,"Bombs: %d Ammo: %d Fuel: %d Health %d",plane->totalBombs,plane->totalAmmo,plane->totalFuel,plane->totalHealth);
-	PA_OutputText(1,0, 13,"Test %d %d",plane->getObjectHeight(),plane->getObjectWidth());
+	PA_OutputText(1,0, 4, "Landscape sprites used:%d", landscapeIndexs.size());
+	PA_OutputText(1,0, 5, "Available sprites:%d", spritePool.size());
+	PA_OutputText(1,0, 6, "Plane taking off:%d", plane->takingOff);
+	PA_OutputText(1,0, 7, "Particle count:%d", particles.size());
+	PA_OutputText(1,0, 8,"Rot pool size:%d", rotPool.size());
+	PA_OutputText(1,0, 9,"Bombs: %d Ammo: %d Fuel: %d Health %d",plane->totalBombs,plane->totalAmmo,plane->totalFuel,plane->totalHealth);
+	PA_OutputText(1,0, 11,"Landscape test: x:%d",landscapeReferenceObjects[0]->getSpriteInfo()->getObjSize()[1]);
 }

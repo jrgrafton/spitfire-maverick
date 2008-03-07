@@ -15,6 +15,25 @@ SpriteInfo::SpriteInfo(u16 width,u16 height,s32 angle,s16 gfxref,s16 spriteIndex
 	this->usesRot=usesRot;
 }
 
+//Sprite info copy constructor....needed since this class has an array
+SpriteInfo::SpriteInfo(const SpriteInfo &object){
+	this->width=object.width;
+	this->height=object.height;
+	this->angle=object.angle;
+	this->gfxref=object.gfxref;
+	this->spriteIndex=object.spriteIndex;
+	this->rotIndex=object.rotIndex;
+	this->paletteIndex=object.paletteIndex;
+	this->zoom=object.zoom;
+	this->doubleSize=object.doubleSize;
+	this->usesRot=object.usesRot;
+	
+	//need to make a copy of the array
+	this->objsize = new u16[2];
+	this->objsize[0] = object.objsize[0];
+	this->objsize[1] = object.objsize[1];
+}
+
 SpriteInfo::~SpriteInfo(){
 	delete[] objsize;
 }
@@ -40,7 +59,9 @@ void SpriteInfo::setAngle(s32 angle){
 u16 SpriteInfo::getGfxRef(){
 	return gfxref;
 }
-
+void SpriteInfo::setGfxRef(u16 gfxref){
+	this->gfxref=gfxref;
+}
 s16 SpriteInfo::getRotIndex(){
 	return rotIndex;
 }

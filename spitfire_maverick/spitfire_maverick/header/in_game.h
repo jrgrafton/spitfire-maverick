@@ -42,11 +42,13 @@ class InGame : public State{
 		//Init functions
 		void initGraphics();
 		void initSound();
+		void initLanscapeLookup();
 		void initLevel();
 		void initRunway();
 		void initPlane();
 		void processHeightMap(char* fileLine,vector<u16>* heightMap);
 		int addNextHeight(string* line,vector<u16>* heightMap);
+		void addLandscapeObject(s32 x,u16 ref);
 		
 		//Collision based functions (these are called from the relative update routines!)
 		int landscapeCollision(s16 x,s16 y);
@@ -65,7 +67,8 @@ class InGame : public State{
 		
 		//Drawing functions
 		void doDrawing();
-		void drawLandscape();
+		void drawLandscapeTiles();
+		void drawLandscapeObjects();
 		void resetLandscape();
 		void drawProjectiles();
 		void drawParticles();

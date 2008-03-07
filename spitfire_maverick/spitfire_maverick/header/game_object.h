@@ -22,8 +22,10 @@ class GameObject{
 		u16 getObjectWidth();
 		u16 getObjectHeight();
 		SpriteInfo* getSpriteInfo();
+		void setLocation(s32 x,s32 y);
 		
 		GameObject(string* name,s32 startx,s32 starty,u16 width,u16 height,s32 heading,s16 vx, s16 vy,SpriteInfo* si);
+		GameObject(const GameObject &object);	//Copy constructor
 		virtual ~GameObject();	
 };
 #endif

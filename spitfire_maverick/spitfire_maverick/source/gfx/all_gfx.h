@@ -41,6 +41,12 @@ extern const unsigned char runway_image_Sprite[2048] __attribute__ ((aligned (4)
 extern const unsigned char runway_tower_image_Sprite[2048] __attribute__ ((aligned (4))) ;  // Pal : runway_image_Pal
 extern const unsigned char spitfire_image_Sprite[13312] __attribute__ ((aligned (4))) ;  // Pal : spitfire_image_Pal
 extern const unsigned char plane_piece_particles_image_Sprite[64] __attribute__ ((aligned (4))) ;  // Pal : particles_image_Pal
+extern const unsigned char tower_allies_image_Sprite[2048] __attribute__ ((aligned (4))) ;  // Pal : landscape_allobjects_Pal
+extern const unsigned char tower_german_image_Sprite[2048] __attribute__ ((aligned (4))) ;  // Pal : landscape_allobjects_Pal
+extern const unsigned char tree1_image_Sprite[1024] __attribute__ ((aligned (4))) ;  // Pal : landscape_allobjects_Pal
+extern const unsigned char tree2_image_Sprite[1024] __attribute__ ((aligned (4))) ;  // Pal : landscape_allobjects_Pal
+extern const unsigned char tree3_image_Sprite[1024] __attribute__ ((aligned (4))) ;  // Pal : landscape_allobjects_Pal
+extern const unsigned char tree4_image_Sprite[1024] __attribute__ ((aligned (4))) ;  // Pal : landscape_allobjects_Pal
 
 // Background files : 
 extern const int background_image_Info[3]; // BgMode, Width, Height
@@ -55,6 +61,7 @@ extern const unsigned short grass_image_Pal[80] __attribute__ ((aligned (4))) ;
 extern const unsigned short runway_image_Pal[93] __attribute__ ((aligned (4))) ;
 extern const unsigned short spitfire_image_Pal[250] __attribute__ ((aligned (4))) ;
 extern const unsigned short particles_image_Pal[2] __attribute__ ((aligned (4))) ;
+extern const unsigned short landscape_allobjects_Pal[219] __attribute__ ((aligned (4))) ;
 
 #endif
 
