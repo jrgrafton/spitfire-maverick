@@ -41,6 +41,8 @@ extern "C" {
 #include "tree2_image.c"
 #include "tree3_image.c"
 #include "tree4_image.c"
+#include "tree_destroyed_image.c"
+#include "tower_destroyed_image.c"
 
 // Palette files : 
 #include "plane_image.pal.c"

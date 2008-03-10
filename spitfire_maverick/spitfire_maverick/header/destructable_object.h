@@ -3,11 +3,11 @@
 
 class DestructableObject: public GameObject{
 	public:
-		void destroy();
+		void destructObject();
 		s16 getHealth();
 		void setHealth(s16 health);
 		u16 getParticleCount();
-		SpriteInfo* getParticleInstance();
+		SpriteInfo* getParticleSpriteInstance();
 		bool getDestroyed();
 
 		DestructableObject(s32 startx,s32 starty,u16 width,u16 height,s32 heading,s16 vx, s16 vy,SpriteInfo* si,s16 health,s16 particleCount,s16 destroyedGfxRef,SpriteInfo* particleInstance);
@@ -18,8 +18,8 @@ class DestructableObject: public GameObject{
 		s16 health;
 		s16 particleCount;
 		s16 destroyedGfxRef;
-		SpriteInfo* particleInstance;
-		bool destroyed;
+		SpriteInfo* particleSpriteInstance;
+		bool objectDestroyed;
 
 };
 #endif

@@ -63,8 +63,8 @@ u16 blackTile;
 //Track background scrolling
 s32 bgscroll=0;
 
-//Represents bottom middle of the plane
-PlaneObject* plane;
+//Represents player plane
+PlaneObject* player;
 
 //Represents runway (needs to be part of level object)
 u16 runwayStart;
@@ -96,7 +96,7 @@ InGame::InGame() : State(){
 **/
 InGame::~InGame(){
 	delete currentLevel;
-	delete plane;
+	delete player;
 }
 
 inline s16 InGame::getViewPortX(){
@@ -176,8 +176,10 @@ void InGame::initGraphics(){
 }
 void InGame::addLandscapeObject(s32 x,u16 ref){
 	DestructableObject* object = new DestructableObject(*landscapeReferenceObjects[ref]);
-	s32 y = getHeightAtPoint(x+object->getSpriteInfo()->getSpriteWidth()/2);
-	object->setLocation(x<<8,(y-object->getObjectHeight()+2)<<8); //Plus 2 to make sure its properly in ground
+	SpriteInfo* si = object->getSpriteInfo();
+	s32 y = getHeightAtPoint(x+si->getSpriteWidth()/2);
+	s32 offset = object->getObjectHeight();
+	object->setLocation(x<<8,(y-offset+4)<<8);
 	landscapeObjects.push_back(object);
 }
 
@@ -212,29 +214,30 @@ void InGame::initLanscapeLookup(){
 	u16 towerGermanGfx = PA_CreateGfx(0, (void*)tower_german_image_Sprite, OBJ_SIZE_32X64, 1);
 	
 	//Now create all particle sprite info objects
-	SpriteInfo* treeParticle = new SpriteInfo(8,8,0,particleGfx,-1,-1,3,temp8X8,256,0,true);
-	SpriteInfo* towerParticle = new SpriteInfo(8,8,0,particleGfx,-1,-1,3,temp8X8,256,0,true);
+	SpriteInfo* treeParticle = new SpriteInfo(8,8,0,particleGfx,-1,-1,3,objectsize8X8,256,0,false);
+	SpriteInfo* towerParticle = new SpriteInfo(8,8,0,particleGfx,-1,-1,3,objectsize8X8,256,0,false);
 
-	s16 destroyedGfxRef=-1;//THIS NEEDS TO BE CHANGED SO THAT ALL LANDSCAPE OBJECTS HAVE DESTROYED GFX REFS
+	u16 destroyedTreeGfxRef=PA_CreateGfx(0, (void*)tree_destroyed_image_Sprite, OBJ_SIZE_32X32, 1);
+	u16 destroyedTowerGfxRef=PA_CreateGfx(0, (void*)tower_destroyed_image_Sprite, OBJ_SIZE_32X64, 1);
 	
 	//Now go onto create all landscape objects with their sprite info objects
 	SpriteInfo* treeSpriteOneInfo = new SpriteInfo(32,32,0,treeOneGfx,-1,-1,4,objectsize32X32,256,0,false);
-	DestructableObject* treeObjectOne = new DestructableObject(0,0,32,32,0,0,0,treeSpriteOneInfo,100,5,destroyedGfxRef,treeParticle);
+	DestructableObject* treeObjectOne = new DestructableObject(0,0,32,32,0,0,0,treeSpriteOneInfo,100,5,destroyedTreeGfxRef,treeParticle);
 	
 	SpriteInfo* treeSpriteTwoInfo = new SpriteInfo(32,32,0,treeTwoGfx,-1,-1,4,objectsize32X32,256,0,false);
-	DestructableObject* treeObjectTwo = new DestructableObject(0,0,32,32,0,0,0,treeSpriteTwoInfo,100,5,destroyedGfxRef,treeParticle);
+	DestructableObject* treeObjectTwo = new DestructableObject(0,0,32,32,0,0,0,treeSpriteTwoInfo,100,5,destroyedTreeGfxRef,treeParticle);
 	
 	SpriteInfo* treeSpriteThreeInfo = new SpriteInfo(32,32,0,treeThreeGfx,-1,-1,4,objectsize32X32,256,0,false);
-	DestructableObject* treeObjectThree = new DestructableObject(0,0,32,32,0,0,0,treeSpriteThreeInfo,100,5,destroyedGfxRef,treeParticle);
+	DestructableObject* treeObjectThree = new DestructableObject(0,0,32,32,0,0,0,treeSpriteThreeInfo,100,5,destroyedTreeGfxRef,treeParticle);
 	
 	SpriteInfo* treeSpriteFourInfo = new SpriteInfo(32,32,0,treeFourGfx,-1,-1,4,objectsize32X32,256,0,false);
-	DestructableObject* treeObjectFour = new DestructableObject(0,0,32,32,0,0,0,treeSpriteFourInfo,100,5,destroyedGfxRef,treeParticle);
+	DestructableObject* treeObjectFour = new DestructableObject(0,0,32,32,0,0,0,treeSpriteFourInfo,100,5,destroyedTreeGfxRef,treeParticle);
 	
 	SpriteInfo* towerAlliesSpriteInfo = new SpriteInfo(32,64,0,towerAlliesGfx,-1,-1,4,objectsize32X64,256,0,false);
-	DestructableObject* towerAlliesObject = new DestructableObject(0,0,32,64,0,0,0,towerAlliesSpriteInfo,100,5,destroyedGfxRef,towerParticle);
+	DestructableObject* towerAlliesObject = new DestructableObject(0,0,20,64,0,0,0,towerAlliesSpriteInfo,100,5,destroyedTowerGfxRef,towerParticle);
 	
 	SpriteInfo* towerGermanSpriteInfo = new SpriteInfo(32,64,0,towerGermanGfx,-1,-1,4,objectsize32X64,256,0,false);
-	DestructableObject* towerGermanObject = new DestructableObject(0,0,32,64,0,0,0,towerGermanSpriteInfo,100,5,destroyedGfxRef,towerParticle);
+	DestructableObject* towerGermanObject = new DestructableObject(0,0,20,64,0,0,0,towerGermanSpriteInfo,100,5,destroyedTowerGfxRef,towerParticle);
 
 	//Now put all objects in an array to be looked up
 	landscapeReferenceObjects[5] = treeObjectOne;
@@ -309,135 +312,91 @@ void InGame::initLevel(){
 		string* levelTitle = new string("test level");
 
 		//Height map
-		vector<u16>* heightMap = new vector<u16>();
-		heightMap->push_back(SHEIGHT-20);
-		heightMap->push_back(SHEIGHT-24);
-		heightMap->push_back(SHEIGHT-30);
-		heightMap->push_back(SHEIGHT-34);
-		heightMap->push_back(SHEIGHT-56);
-		heightMap->push_back(SHEIGHT-78);
-		heightMap->push_back(SHEIGHT-90);
+		vector<s16>* heightMap = new vector<s16>();
+		heightMap->push_back(SHEIGHT-120);
+		heightMap->push_back(SHEIGHT-110);
 		heightMap->push_back(SHEIGHT-100);
-		heightMap->push_back(SHEIGHT-96);
+		heightMap->push_back(SHEIGHT-90);
 		heightMap->push_back(SHEIGHT-80);
-		heightMap->push_back(SHEIGHT-78);
-		heightMap->push_back(SHEIGHT-60);
-		heightMap->push_back(SHEIGHT-54);
-		heightMap->push_back(SHEIGHT-56);
-		heightMap->push_back(SHEIGHT-56);
-		heightMap->push_back(SHEIGHT-56);
-		heightMap->push_back(SHEIGHT-56);
-		heightMap->push_back(SHEIGHT-56);
-		heightMap->push_back(SHEIGHT-56);
-		heightMap->push_back(SHEIGHT-56);
-		heightMap->push_back(SHEIGHT-56);
-		heightMap->push_back(SHEIGHT-56);
-		heightMap->push_back(SHEIGHT-56);
-		heightMap->push_back(SHEIGHT-56);
-		heightMap->push_back(SHEIGHT-56);
-		heightMap->push_back(SHEIGHT-56);
-		heightMap->push_back(SHEIGHT-56);
-		heightMap->push_back(SHEIGHT-56);
-		heightMap->push_back(SHEIGHT-56);
-		heightMap->push_back(SHEIGHT-56);
-		heightMap->push_back(SHEIGHT-56);
-		heightMap->push_back(SHEIGHT-56);
-		heightMap->push_back(SHEIGHT-56);
-		heightMap->push_back(SHEIGHT-56);
-		heightMap->push_back(SHEIGHT-56);
-		heightMap->push_back(SHEIGHT-56);
-		heightMap->push_back(SHEIGHT-56);
-		heightMap->push_back(SHEIGHT-58);
-
-		heightMap->push_back(SHEIGHT-60);
-
-		heightMap->push_back(SHEIGHT-62);
-
-		heightMap->push_back(SHEIGHT-64);
-
-		heightMap->push_back(SHEIGHT-66);
-
-		heightMap->push_back(SHEIGHT-68);
-
+		heightMap->push_back(SHEIGHT-70);
+		heightMap->push_back(SHEIGHT-70);
+		heightMap->push_back(SHEIGHT-70);
+		heightMap->push_back(SHEIGHT-70);
+		heightMap->push_back(SHEIGHT-70);
+		heightMap->push_back(SHEIGHT-70);
+		heightMap->push_back(SHEIGHT-70);
+		heightMap->push_back(SHEIGHT-70);
+		heightMap->push_back(SHEIGHT-70);
+		heightMap->push_back(SHEIGHT-70);
+		heightMap->push_back(SHEIGHT-70);
+		heightMap->push_back(SHEIGHT-70);
+		heightMap->push_back(SHEIGHT-70);
+		heightMap->push_back(SHEIGHT-70);
+		heightMap->push_back(SHEIGHT-70);
+		heightMap->push_back(SHEIGHT-70);
+		heightMap->push_back(SHEIGHT-70);
+		heightMap->push_back(SHEIGHT-70);
+		heightMap->push_back(SHEIGHT-70);
+		heightMap->push_back(SHEIGHT-70);
+		heightMap->push_back(SHEIGHT-70);
+		heightMap->push_back(SHEIGHT-70);
+		heightMap->push_back(SHEIGHT-70);
 		heightMap->push_back(SHEIGHT-70);
 
-		heightMap->push_back(SHEIGHT-50);
-		heightMap->push_back(SHEIGHT-44);
-		heightMap->push_back(SHEIGHT-42);
-		heightMap->push_back(SHEIGHT-40);
-		heightMap->push_back(SHEIGHT-20);
-		heightMap->push_back(SHEIGHT-20);
-		heightMap->push_back(SHEIGHT-24);
-		heightMap->push_back(SHEIGHT-30);
-		heightMap->push_back(SHEIGHT-44);
-		heightMap->push_back(SHEIGHT-42);
-		heightMap->push_back(SHEIGHT-40);
-		heightMap->push_back(SHEIGHT-20);
-		heightMap->push_back(SHEIGHT-20);
-		heightMap->push_back(SHEIGHT-24);
-		heightMap->push_back(SHEIGHT-30);
-		heightMap->push_back(SHEIGHT-34);
-		heightMap->push_back(SHEIGHT-56);
-		heightMap->push_back(SHEIGHT-78);
-		heightMap->push_back(SHEIGHT-90);
+		heightMap->push_back(SHEIGHT-82);
+		heightMap->push_back(SHEIGHT-88);
+		heightMap->push_back(SHEIGHT-98);
+
+		heightMap->push_back(SHEIGHT-108);
+		heightMap->push_back(SHEIGHT-110);
+		heightMap->push_back(SHEIGHT-110);
+
+
+		heightMap->push_back(SHEIGHT-112);
+		heightMap->push_back(SHEIGHT-122);
+		heightMap->push_back(SHEIGHT-132);
+		heightMap->push_back(SHEIGHT-144);
+		heightMap->push_back(SHEIGHT-134);
+
+		heightMap->push_back(SHEIGHT-124);
+		heightMap->push_back(SHEIGHT-114);
+		heightMap->push_back(SHEIGHT-104);
+		heightMap->push_back(SHEIGHT-94);
+		//Tree
+		heightMap->push_back(SHEIGHT-92);
+		//Tree
+		heightMap->push_back(SHEIGHT-92);
+		//Tree
+		heightMap->push_back(SHEIGHT-98);
+		heightMap->push_back(SHEIGHT-86);
+		//Tree
 		heightMap->push_back(SHEIGHT-100);
-		heightMap->push_back(SHEIGHT-96);
-		heightMap->push_back(SHEIGHT-80);
-		heightMap->push_back(SHEIGHT-78);
-		heightMap->push_back(SHEIGHT-60);
-		heightMap->push_back(SHEIGHT-54);
-		heightMap->push_back(SHEIGHT-56);
-		heightMap->push_back(SHEIGHT-58);
-		heightMap->push_back(SHEIGHT-50);
-		heightMap->push_back(SHEIGHT-44);
-		heightMap->push_back(SHEIGHT-42);
-		heightMap->push_back(SHEIGHT-40);
-		heightMap->push_back(SHEIGHT-20);
-		heightMap->push_back(SHEIGHT-20);
-		heightMap->push_back(SHEIGHT-24);
-		heightMap->push_back(SHEIGHT-30);
-		heightMap->push_back(SHEIGHT-34);
-		heightMap->push_back(SHEIGHT-56);
-		heightMap->push_back(SHEIGHT-78);
-		heightMap->push_back(SHEIGHT-90);
-		heightMap->push_back(SHEIGHT-100);
-		heightMap->push_back(SHEIGHT-96);
-		heightMap->push_back(SHEIGHT-80);
-		heightMap->push_back(SHEIGHT-78);
-		heightMap->push_back(SHEIGHT-60);
-		heightMap->push_back(SHEIGHT-54);
-		heightMap->push_back(SHEIGHT-56);
-		heightMap->push_back(SHEIGHT-58);
-		heightMap->push_back(SHEIGHT-50);
-		heightMap->push_back(SHEIGHT-44);
-		heightMap->push_back(SHEIGHT-42);
-		heightMap->push_back(SHEIGHT-40);
-		heightMap->push_back(SHEIGHT-20);
-		heightMap->push_back(SHEIGHT-20);
-		heightMap->push_back(SHEIGHT-24);
-		heightMap->push_back(SHEIGHT-30);
-		heightMap->push_back(SHEIGHT-34);
-		heightMap->push_back(SHEIGHT-56);
-		heightMap->push_back(SHEIGHT-78);
-		heightMap->push_back(SHEIGHT-90);
-		heightMap->push_back(SHEIGHT-100);
-		heightMap->push_back(SHEIGHT-96);
-		heightMap->push_back(SHEIGHT-80);
-		heightMap->push_back(SHEIGHT-78);
-		heightMap->push_back(SHEIGHT-60);
-		heightMap->push_back(SHEIGHT-54);
-		heightMap->push_back(SHEIGHT-56);
-		heightMap->push_back(SHEIGHT-58);
-		heightMap->push_back(SHEIGHT-50);
-		heightMap->push_back(SHEIGHT-44);
-		heightMap->push_back(SHEIGHT-42);
-		heightMap->push_back(SHEIGHT-40);
-		heightMap->push_back(SHEIGHT-20);
-		heightMap->push_back(SHEIGHT-44);
-		heightMap->push_back(SHEIGHT-10);
+		//Tree
+		heightMap->push_back(SHEIGHT-104);
+		heightMap->push_back(SHEIGHT-106);
+		heightMap->push_back(SHEIGHT-110);
+		heightMap->push_back(SHEIGHT-110);
+		heightMap->push_back(SHEIGHT-110);
+		heightMap->push_back(SHEIGHT-110);
+		heightMap->push_back(SHEIGHT-110);
+		heightMap->push_back(SHEIGHT-110);
+		heightMap->push_back(SHEIGHT-110);
+		heightMap->push_back(SHEIGHT-110);
+		heightMap->push_back(SHEIGHT-110);
+		heightMap->push_back(SHEIGHT-124);
+		heightMap->push_back(SHEIGHT-126);
+		heightMap->push_back(SHEIGHT-136);
+		heightMap->push_back(SHEIGHT-146);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
 
 		u16 levelWidth = (heightMap->size()-2)*16;
-		u16 levelHeight = (u16)(SHEIGHT*1.5);
+		u16 levelHeight = (u16)(SHEIGHT*2);
 	
 		//Init level with full heightmap
 		currentLevel = new Level(levelWidth,levelHeight,levelTitle,heightMap);
@@ -500,10 +459,10 @@ void InGame::initPlane(){
 	objsize[1] = temp[1];
 
 	SpriteInfo* so = new SpriteInfo(32,32,0,plane_gfx,0,0,0,objsize,256,1,true);
-	plane = new PlaneObject(runwayStart<<8,(runwayHeight-4)<<8,16,8,0,0,0,9,60,so);
+	player = new PlaneObject(runwayStart<<8,(runwayHeight-4)<<8,16,8,0,0,0,9,60,so);
 
 	//Load plane sprite
-	PA_CreateSpriteFromGfx(0, so->getSpriteIndex(),so->getGfxRef(),OBJ_SIZE_32X32, 1, so->getPaletteIndex(), plane->getX(), plane->getY());
+	PA_CreateSpriteFromGfx(0, so->getSpriteIndex(),so->getGfxRef(),OBJ_SIZE_32X32, 1, so->getPaletteIndex(), player->getX(), player->getY());
 
 	//Enable rotation for plane
 	PA_SetSpriteRotEnable(0,0,0);
@@ -520,7 +479,7 @@ void InGame::initSound(){
 	player_gun_sfx_size[2]=(s32)fiftycal3_sfx_size;
 	player_gun_sfx_size[3]=(s32)fiftycal4_sfx_size;
 
-	PA_PlaySoundEx2 (0,plane_engine_sfx,(s32)plane_engine_sfx_size,(plane->speed<<8)/1109,44100,0,true,0);
+	PA_PlaySoundEx2 (0,plane_engine_sfx,(s32)plane_engine_sfx_size,(player->speed<<8)/1109,44100,0,true,0);
 }
 /**
 **Process height map
@@ -577,25 +536,25 @@ void InGame::run(){
 Process input function
 **/
 void InGame::processInput(void){
-	if(Pad.Held.R&&!plane->onRunway){
-		if(plane->canShoot()){plane->timeSinceFired=0;addPlayerBullet();}
+	if(Pad.Held.R&&!player->onRunway){
+		if(player->canShoot()){player->timeSinceFired=0;addPlayerBullet();}
 	}
-	if(Pad.Newpress.L&&!plane->onRunway){
-		if(plane->canBomb()){plane->timeSinceBombed=0;addPlayerBomb();}
+	if(Pad.Newpress.L&&!player->onRunway){
+		if(player->canBomb()){player->timeSinceBombed=0;addPlayerBomb();}
 	}
 	if(Pad.Held.B){
-		plane->throttleOn=1;
+		player->throttleOn=1;
 	}
 	else{
-		plane->throttleOn=0;
+		player->throttleOn=0;
 	}
-	if(Pad.Held.Left&&!plane->onRunway){
-		plane->heading+=PLANETURNSPEED;
-		if(plane->getHeading()>(511<<8)){plane->setHeading(0);}
+	if(Pad.Held.Left&&!player->onRunway){
+		player->heading+=PLANETURNSPEED;
+		if(player->getHeading()>(511<<8)){player->setHeading(0);}
 	}
-	if(Pad.Held.Right&&!plane->onRunway){
-		plane->heading-=PLANETURNSPEED;
-		if(plane->getHeading()<0){plane->setHeading(511<<8);}
+	if(Pad.Held.Right&&!player->onRunway){
+		player->heading-=PLANETURNSPEED;
+		if(player->getHeading()<0){player->setHeading(511<<8);}
 	}
 }
 
@@ -605,25 +564,25 @@ void InGame::addPlayerBullet(){
 	s32 sound_size = player_gun_sfx_size[soundIndex];
 	PA_PlaySound(PA_GetFreeSoundChannel(),sound,sound_size,127,44100);
 
-	SpriteInfo* planeSo = plane->getSpriteInfo();
+	SpriteInfo* planeSo = player->getSpriteInfo();
 	
-	plane->totalAmmo--;
+	player->totalAmmo--;
 
-	s16 componentx = PA_Cos(plane->getHeading()>>8);
-	s16 componenty = -PA_Sin(plane->getHeading()>>8);
+	s16 componentx = PA_Cos(player->getHeading()>>8);
+	s16 componenty = -PA_Sin(player->getHeading()>>8);
 	
-	s32 cx = plane->x+((planeSo->getSpriteWidth()/2)<<8);
-	s32 cy = plane->y+((planeSo->getSpriteHeight()/2)<<8);
+	s32 cx = player->x+((planeSo->getSpriteWidth()/2)<<8);
+	s32 cy = player->y+((planeSo->getSpriteHeight()/2)<<8);
 
-	s32 startx = cx+(componentx*(plane->getObjectWidth()/2));
-	s32 starty = cy+(componenty*(plane->getObjectWidth()/2));
+	s32 startx = cx+(componentx*(player->getObjectWidth()/2));
+	s32 starty = cy+(componenty*(player->getObjectWidth()/2));
 	
 	u16 width =1;
 	u16 height =6;
-	s32 heading = plane->getHeading()>>8;
+	s32 heading = player->getHeading()>>8;
 
-	s16 vx = (PA_Cos(heading)*(plane->speed+1000)>>8);
-	s16 vy = (-PA_Sin(heading)*(plane->speed+1000)>>8)+PA_RandMax(64);
+	s16 vx = (PA_Cos(heading)*(player->speed+1000)>>8);
+	s16 vy = (-PA_Sin(heading)*(player->speed+1000)>>8)+PA_RandMax(64);
 	
 	u16* objsize = new u16[2];
 	
@@ -634,15 +593,15 @@ void InGame::addPlayerBullet(){
 
 void InGame::addPlayerBomb(){
 	PA_PlaySound(PA_GetFreeSoundChannel(),player_bomb_sfx,(u32)player_bomb_sfx_size,127,44100);
-	plane->totalBombs--;
+	player->totalBombs--;
 
-	SpriteInfo* planeSo = plane->getSpriteInfo();
+	SpriteInfo* planeSo = player->getSpriteInfo();
 
-	s32 cx = plane->x+((planeSo->getSpriteWidth()/2)<<8);
-	s32 cy = plane->y+((planeSo->getSpriteHeight()/2)<<8);
+	s32 cx = player->x+((planeSo->getSpriteWidth()/2)<<8);
+	s32 cy = player->y+((planeSo->getSpriteHeight()/2)<<8);
 
 	//First get the bottom middle
-	s16 currentAngle = plane->getHeading()>>8;
+	s16 currentAngle = player->getHeading()>>8;
 	s16 normalAdjust = (currentAngle<128||currentAngle>384)? -128:128;
 
 	s16 normalAngle = currentAngle+normalAdjust;
@@ -650,19 +609,19 @@ void InGame::addPlayerBomb(){
 	if(normalAngle<0)normalAngle+=512;
 	if(normalAngle>511)normalAngle &= 512;
 
-	s32 startx = cx+(PA_Cos(normalAngle) * (plane->getObjectHeight()/2));
-	s32 starty = cy+(-PA_Sin(normalAngle) * (plane->getObjectHeight()/2));
+	s32 startx = cx+(PA_Cos(normalAngle) * (player->getObjectHeight()/2));
+	s32 starty = cy+(-PA_Sin(normalAngle) * (player->getObjectHeight()/2));
 	
 	u16 width =2;
 	u16 height =6;
-	s32 heading = plane->getHeading();
+	s32 heading = player->getHeading();
 	
 	u16* objsize = new u16[2];
 	//Will have need to aquire a rotref when it uses an image...and gfx ref and palette
 	
 	//u16 width,u16 height,s32 angle,u16 gfxref,s16 rotIndex,s16 palette,u16* objsize,u16 zoom,u16 doubleSize bool usesRot
 	SpriteInfo* so = new SpriteInfo(-1,-1,0,-1,-1,-1,5,objsize,256,0,false);
-	GameObject* bomb = new GameObject(new string("player_bomb"),startx,starty,width,height,heading,plane->vx,plane->vy,so);
+	GameObject* bomb = new GameObject(new string("player_bomb"),startx,starty,width,height,heading,player->vx,player->vy,so);
 	projectiles.push_back(bomb);
 }
 
@@ -685,37 +644,37 @@ void InGame::doUpdates(){
 }
 void InGame::updatePlane(){
 	//Update engine sound
-	PA_SetSoundChannelVol(0,(plane->speed<<8)/1109);
+	PA_SetSoundChannelVol(0,(player->speed<<8)/1109);
 	
 	//Increase time since fired/bombed
-	plane->timeSinceFired++; //Increase time since last fired
-	plane->timeSinceBombed++;
+	player->timeSinceFired++; //Increase time since last fired
+	player->timeSinceBombed++;
 	
 	//Make sure heading is tied to sprite rotation
-	plane->getSpriteInfo()->setAngle(plane->getHeading());
-	s16 heading = plane->getHeading()>>8;
+	player->getSpriteInfo()->setAngle(player->getHeading());
+	s16 heading = player->getHeading()>>8;
 
 	//Check for takeoff
-	if(plane->onRunway&&((plane->getX()+plane->width>runwayEnd&&heading==0)||(plane->getX()<runwayStart&&heading==256))&&plane->takingOff==1){
-		if(plane->speed<MINPLANESPEED){planeCrash();return;}	//Crash if we have reached the end of runway and we are not fast enough
-		plane->onRunway=0;
-		plane->takingOff=0;
-		if(heading==256){plane->heading=246<<8;}
-		else{plane->setHeading(10<<8);}
+	if(player->onRunway&&((player->getX()+player->width>runwayEnd&&heading==0)||(player->getX()<runwayStart&&heading==256))&&player->takingOff==1){
+		if(player->speed<MINPLANESPEED){planeCrash();return;}	//Crash if we have reached the end of runway and we are not fast enough
+		player->onRunway=0;
+		player->takingOff=0;
+		if(heading==256){player->heading=246<<8;}
+		else{player->setHeading(10<<8);}
 	}
 
-	s32 vy = plane->vy;
-	s32 vx = plane->vx;
+	s32 vy = player->vy;
+	s32 vx = player->vx;
 	s32 speed =0;
 	
-	if(!plane->onRunway){
-		if(plane->totalFuel>0)plane->totalFuel--;
+	if(!player->onRunway){
+		if(player->totalFuel>0)player->totalFuel--;
 		//PROPER ALGORITHM
 		vy+=GRAVITY;
 		speed = getSpeedFromVelocity(vx,vy);//Base speed calculated from vx and vy
 
 		//Increase speed if holding up
-		if(plane->totalFuel>0)speed+=plane->throttleOn*PLANEPOWER;
+		if(player->totalFuel>0)speed+=player->throttleOn*PLANEPOWER;
 		
 		//Take off friction
 		speed*=FRICTION;
@@ -728,57 +687,57 @@ void InGame::updatePlane(){
 	else{
 		//If we are on the runway the throttle is on and we are not yet taking off
 		//Make sure we are! (taking off is 1 for yes 0 for in air and -1 for landing)
-		if(plane->onRunway&&plane->throttleOn&&plane->takingOff==0){
-			plane->takingOff=1;
+		if(player->onRunway&&player->throttleOn&&player->takingOff==0){
+			player->takingOff=1;
 		}
 		speed = getSpeedFromVelocity(vx,vy);//Base speed calculated from vx and vy
-		if(!plane->throttleOn&&plane->takingOff){plane->throttleOn=1;} //Throttle always on when taking off
-		speed+=plane->throttleOn*PLANEPOWER*plane->takingOff;
+		if(!player->throttleOn&&player->takingOff){player->throttleOn=1;} //Throttle always on when taking off
+		speed+=player->throttleOn*PLANEPOWER*player->takingOff;
 		
 		//Check for end of runway
-		if(plane->takingOff==-1&&plane->speed>0&&(plane->getX()+plane->width>runwayEnd||plane->getX()<runwayStart)){
+		if(player->takingOff==-1&&player->speed>0&&(player->getX()+player->width>runwayEnd||player->getX()<runwayStart)){
 			planeCrash();
 		}
 
 		//Do a refeuling here turning around etc if landing
-		if(speed<=0&&plane->takingOff==-1){
+		if(speed<=0&&player->takingOff==-1){
 			speed=0;
-			plane->takingOff=0;
-			plane->restock();
+			player->takingOff=0;
+			player->restock();
 			//Flip planes current facing
-			if(heading>128&&heading<384){plane->setHeading(0);}
-			else{plane->setHeading(256<<8);}
+			if(heading>128&&heading<384){player->setHeading(0);}
+			else{player->setHeading(256<<8);}
 		}
 		//Make sure we dont exceed min speed when taking off
-		if(speed>MINPLANESPEED&&plane->takingOff==1){speed=MINPLANESPEED;}
+		if(speed>MINPLANESPEED&&player->takingOff==1){speed=MINPLANESPEED;}
 	}
 	
 	//Recalculate xv and yv
-	if(plane->totalFuel>0){
-		plane->vx = (PA_Cos(heading)*speed)>>8;
-		plane->vy = (-PA_Sin(heading)*speed)>>8;
+	if(player->totalFuel>0){
+		player->vx = (PA_Cos(heading)*speed)>>8;
+		player->vy = (-PA_Sin(heading)*speed)>>8;
 	}
 	else{
-		if(plane->vx>0)plane->vx--;
-		if(plane->vy<MAXPLANESPEED)plane->vy+=GRAVITY;
-		plane->setHeading(PA_GetAngle(plane->x,plane->y,plane->x+plane->vx,plane->y+plane->vy)<<8);
+		if(player->vx>0)player->vx--;
+		if(player->vy<MAXPLANESPEED)player->vy+=GRAVITY;
+		player->setHeading(PA_GetAngle(player->x,player->y,player->x+player->vx,player->y+player->vy)<<8);
 	}	//Hurtle towards earth if no fuel
 
-	plane->x+=plane->vx;
-	plane->y+=plane->vy;
-	plane->speed=speed;
+	player->x+=player->vx;
+	player->y+=player->vy;
+	player->speed=speed;
 
-	u16 contactingRunway = (plane->getX()>runwayStart&&plane->getX()<runwayEnd)&&planeLandscapeCollision();
+	u16 contactingRunway = (player->getX()>runwayStart&&player->getX()<runwayEnd)&&planeLandscapeCollision();
 
 	//If plane is currently in the air and is contacting the runway
-	if((plane->takingOff==0&&contactingRunway)){
+	if((player->takingOff==0&&contactingRunway)){
 		if((heading>255&&heading<281)||(heading>486)){
-			if(plane->speed>MINPLANESPEED+100){planeCrash();return;}//Need to be going at slowly to land
-			plane->takingOff=-1;
-			plane->onRunway=1;
-			plane->y=(runwayHeight+12)<<8;
-			if(heading>128&&heading<384){plane->setHeading(256<<8);}
-			else{plane->setHeading(0);}
+			if(player->speed>MINPLANESPEED+100){planeCrash();return;}//Need to be going at slowly to land
+			player->takingOff=-1;
+			player->onRunway=1;
+			player->y=(runwayHeight+12)<<8;
+			if(heading>128&&heading<384){player->setHeading(256<<8);}
+			else{player->setHeading(0);}
 		}
 		else{
 			planeCrash();return; //Crash since we came at the runway at to steep angle
@@ -786,30 +745,104 @@ void InGame::updatePlane(){
 	}
 
 	//If the plane is going to be completely rendered above the y threshold reflect its current angle
-	if(plane->getY()<(SHEIGHT-currentLevel->levelHeight)-50){
-		plane->setHeading(reflectOverNormal(plane->getHeading()>>8,384)<<8);
+	if(player->getY()<(SHEIGHT-currentLevel->levelHeight)-50){
+		player->setHeading(reflectOverNormal(player->getHeading()>>8,384)<<8);
 	}
 
 	//If the plane is going to be completely off the x axis the reflect its current angle
-	if(plane->getX()+32<-5){
-		plane->setHeading(reflectOverNormal(plane->getHeading()>>8,0)<<8);
+	if(player->getX()+32<-5){
+		player->setHeading(reflectOverNormal(player->getHeading()>>8,0)<<8);
 	}
 
-	else if(plane->getX()>currentLevel->levelWidth+5){
-		plane->setHeading(reflectOverNormal(plane->getHeading()>>8,256)<<8);
+	else if(player->getX()>currentLevel->levelWidth+5){
+		player->setHeading(reflectOverNormal(player->getHeading()>>8,256)<<8);
 	}
-	if(planeLandscapeCollision()&&plane->takingOff==0&&!contactingRunway)planeCrash();
+	if(player->takingOff==0&&!contactingRunway){playerCollisions();}
+}
+
+void InGame::playerCollisions(){
+	if(planeLandscapeCollision()||playerLandscapeObjectCollison()){
+		planeCrash();
+	}
+}
+
+void InGame::addParticlesFromObject(DestructableObject* destructable){
+	SpriteInfo* si = destructable->getSpriteInfo();
+	SpriteInfo* particleSi = destructable->getParticleSpriteInstance();
+
+	//get center of destructable
+	s16 cx = (destructable->getX()+(si->getSpriteWidth()/2));
+	s16 cy = (destructable->getY()+(si->getSpriteHeight()/2));
+
+	u16 width = si->getSpriteWidth();
+	u16 height = si->getSpriteHeight();
+
+	u16 halfWidth = destructable->getObjectWidth()/2;
+	u16 halfHeight = destructable->getObjectHeight()/2;
+	
+	u16 ttl = 180;
+	bool heavy =true;
+	
+	//for(u16 i=0;destructable->getParticleCount();i++){
+		string* name = new string("landscape_particle");
+
+		s32 startx = cx + (PA_RandMax(destructable->getObjectWidth()))-halfWidth;
+		s32 starty = cy + (PA_RandMax(destructable->getObjectHeight()))-halfHeight;
+
+		u16 currentAngle = PA_RandMax(511<<8);
+		s16 rotspeed = PA_RandMinMax(1400,2800);
+		if(PA_RandMax(1)){rotspeed = 0-rotspeed;}
+		
+		s16 particlevx = PA_RandMax(256)-256;
+		s16 particlevy = PA_RandMax(256)-256;
+
+		particles.push_back(new ParticleObject(name,startx<<8,starty<<8,width,height,currentAngle,rotspeed,particlevx,particlevy,ttl,heavy,particleSi));
+	//}
+}
+
+bool InGame::playerLandscapeObjectCollison(){
+	vector<DestructableObject*>::iterator it;
+	it = landscapeObjects.begin();
+	
+	s16 playerx = 0;
+	s16 playery = 0;
+	getBottomEndPlane(player,playerx,playery,1);
+
+	while( it != landscapeObjects.end()) {
+		DestructableObject* destructable = (*it);
+		if(destructable->getDestroyed()){it++;continue;}
+		SpriteInfo* si = destructable->getSpriteInfo();
+		s16 objectx = (destructable->getX()+(si->getSpriteWidth()/2)) -destructable->getObjectWidth()/2;
+		s16 objecty = (destructable->getY()+(si->getSpriteHeight()/2)) -destructable->getObjectHeight()/2;
+
+		if(pointInRectangle(playerx,playery,objectx,objecty,destructable->getObjectWidth(),destructable->getObjectHeight())){
+			destructable->destructObject();
+			addParticlesFromObject(destructable);
+			return true;
+		}
+		it++;
+	}
+	return false;
+}
+
+bool InGame::pointInRectangle(s16 pointx,s16 pointy,s16 rectanglex,s16 rectangley,u16 width,u16 height){
+	if(pointx>rectanglex&&pointx<rectanglex+width){
+		if(pointy>rectangley&&pointy<rectangley+height){
+			return true;
+		}
+	}
+	return false;
 }
 
 void InGame::updateViewport(){
-	u16 heading = (plane->getHeading()>>8);
+	u16 heading = (player->getHeading()>>8);
 	s16 xflipped = (heading>128&&heading<384)? -1:1;
 	
 	//Viewport calculations using simulated float accuracy
 	s16 xComponent = PA_Cos(heading);
-	u16 adjust = (plane->getSpeed()<MINPLANESPEED)? plane->getSpeed():MINPLANESPEED;
-	viewportx = plane->x+(16<<8)-((SWIDTH/2)<<8)+((plane->vx)*40)-((xComponent*((adjust)*40))>>8);
-	viewporty = plane->y-((SHEIGHT/2)<<8);
+	u16 adjust = (player->getSpeed()<MINPLANESPEED)? player->getSpeed():MINPLANESPEED;
+	viewportx = player->x+(16<<8)-((SWIDTH/2)<<8)+((player->vx)*40)-((xComponent*((adjust)*40))>>8);
+	viewporty = player->y-((SHEIGHT/2)<<8);
 
 	if(getViewPortX()<0){viewportx=0;}
 	if(getViewPortX()+SWIDTH>currentLevel->levelWidth){viewportx=((currentLevel->levelWidth-SWIDTH)<<8);}
@@ -818,8 +851,8 @@ void InGame::updateViewport(){
 	if(getViewPortY()>0){viewporty=0;}
 	
 	//Scroll background
-	if(getViewPortX()>0&&getViewPortX()+SWIDTH<currentLevel->levelWidth&&!plane->crashed){
-		bgscroll+=(((abs(plane->vx)*(plane->speed)>>8))/7*xflipped);
+	if(getViewPortX()>0&&getViewPortX()+SWIDTH<currentLevel->levelWidth&&!player->crashed){
+		bgscroll+=(((abs(player->vx)*(player->speed)>>8))/7*xflipped);
 		PA_BGScrollX(0,2,bgscroll>>8);
 	}
 }
@@ -1051,10 +1084,10 @@ This does not use drawObject function since it has to do quirky
 animations based on its current heading!
 **/
 void InGame::drawPlane(){
-	if(plane->crashed)return;
+	if(player->crashed)return;
 	//Rotate plane and set animation frame
-	SpriteInfo* si = plane->getSpriteInfo();
-	u16 heading = (plane->getHeading()>>8);
+	SpriteInfo* si = player->getSpriteInfo();
+	u16 heading = (player->getHeading()>>8);
 	PA_SetRotset(0, si->getRotIndex(), heading,si->getZoom(),si->getZoom());
 	PA_SetSpriteDblsize(0,si->getSpriteIndex(),si->getDoubleSize());
 	if(heading<256){
@@ -1082,8 +1115,8 @@ void InGame::drawPlane(){
 		}
 	}
 
-	s32 planex =((plane->x-viewportx)>>8);
-	s32 planey =((plane->y-viewporty)>>8);
+	s32 planex =((player->x-viewportx)>>8);
+	s32 planey =((player->y-viewporty)>>8);
 	
 	//Dont draw it if its offscreen
 	if(planex+32<0||planex>SWIDTH||planey+32<0||planey>SHEIGHT){return;}
@@ -1131,7 +1164,7 @@ void InGame::drawLandscapeObjects(){
 
 	while( it != landscapeObjects.end()) {
 		DestructableObject* lo = (*it);
-		drawObject(lo,4);
+		drawObject(lo,2);
 		it++;
 	}
 }
@@ -1210,7 +1243,7 @@ void InGame::drawLandscapeTiles(){
 	//Reset old landscape before rendering new one
 	resetLandscape();
 
-	vector<u16>::iterator it;
+	vector<s16>::iterator it;
 	it = currentLevel->heightMap->begin();
 
 
@@ -1219,7 +1252,7 @@ void InGame::drawLandscapeTiles(){
 		u16 thisHeight = (*it);
 		u16 nextHeight = (*(it+1));
 		u8 spriteIndex = abs(thisHeight-nextHeight)/2;
-		u16 y = taller(thisHeight,nextHeight);		   //Get height
+		s16 y = taller(thisHeight,nextHeight);		   //Get height
 		y-=getViewPortY();
 		
 		if(x>-16&&x<256&&y<SHEIGHT){		//Draw if tile on screen
@@ -1227,6 +1260,7 @@ void InGame::drawLandscapeTiles(){
 			u16 length = grassTiles[spriteIndex][0];
 			//Paste rest of sprite
 			for(u16 i =1;i<length;i++){
+				if(y<0){y+=32;break;}
 				u16 availableIndex = spritePool.back();
 				spritePool.pop_back();					//Get available index
 				//Load sprite to screen
@@ -1240,6 +1274,7 @@ void InGame::drawLandscapeTiles(){
 			}
 			//Paste black sprite
 			while(y<=SHEIGHT){
+				if(y<0){y+=32;break;}
 				u16 availableIndex = spritePool.back();
 				spritePool.pop_back();					//Get available index
 				PA_CreateSpriteFromGfx(0,availableIndex,blackTile,OBJ_SIZE_16X32, 1, 1, x,y);
@@ -1282,10 +1317,27 @@ u16 InGame::smaller(u16 a,u16 b){
 }
 
 u16 InGame::planeLandscapeCollision(){
-	if(plane->onRunway){return 0;}
+	if(player->onRunway){return 0;}
 
-	//First get the bottom middle
-	s16 currentHeading = (plane->getHeading()>>8);
+	s16 tipxFront = 0;
+	s16 tipyFront = 0;
+	s16 tipxBack = 0;
+	s16 tipyBack = 0;
+	getBottomEndPlane(player,tipxFront,tipyFront,1);
+	getBottomEndPlane(player,tipxBack,tipyBack,-1);
+	
+	//Now collision tests
+	return(landscapeCollision(tipxFront,tipyFront)||landscapeCollision(tipxBack,tipyBack));
+}
+
+/**
+Utility function, bottom front of planes are used for collisions
+**/
+void InGame::getBottomEndPlane(GameObject* go,s16 &x,s16 &y,s16 direction){
+	SpriteInfo* si = player->getSpriteInfo();
+	u16 planeRadius = player->getObjectWidth()/2;
+
+	s16 currentHeading = (go->getHeading()>>8);
 	s16 normalAdjust = (currentHeading<128||currentHeading>384)? -128:128;
 
 	s16 normalAngle = currentHeading+normalAdjust;
@@ -1293,28 +1345,17 @@ u16 InGame::planeLandscapeCollision(){
 	if(normalAngle<0)normalAngle+=512;
 	if(normalAngle>511)normalAngle &= 512;
 
-	SpriteInfo* si = plane->getSpriteInfo();
-	
-	//Get center of sprite
-	u16 cx = plane->getX()+(si->getSpriteWidth()/2);
-	u16 cy = plane->getY()+(si->getSpriteHeight()/2);
+	u16 cx = player->getX()+(si->getSpriteWidth()/2);
+	u16 cy = player->getY()+(si->getSpriteHeight()/2);
 
-	s16 bottomx = cx+((PA_Cos(normalAngle) * (plane->getObjectHeight()/2))>>8);
-	s16 bottomy = cy+((-PA_Sin(normalAngle) * (plane->getObjectHeight()/2))>>8);
+	s16 bottomx = cx+((PA_Cos(normalAngle) * (go->getObjectHeight()/2))>>8);
+	s16 bottomy = cy+((-PA_Sin(normalAngle) * (go->getObjectHeight()/2))>>8);
 	
-	s16 xComponent =PA_Cos(plane->getHeading()>>8);
-	s16 yComponent =-PA_Sin(plane->getHeading()>>8);
+	s16 xComponent =PA_Cos(go->getHeading()>>8);
+	s16 yComponent =-PA_Sin(go->getHeading()>>8);
 
-	u16 planeRadius = plane->getObjectWidth()/2;
-
-	//Now extend from bottom middle half the length of the plane along the curent vector
-	s16 tipxFront = bottomx+((xComponent*planeRadius)>>8);
-	s16 tipyFront = bottomy+((yComponent*planeRadius)>>8);
-	s16 tipxBack = bottomx+((xComponent*-planeRadius)>>8);
-	s16 tipyBack = bottomy+((yComponent*-planeRadius)>>8);
-	
-	//Now collision tests
-	return(landscapeCollision(tipxFront,tipyFront)||landscapeCollision(tipxBack,tipyBack));
+	x = bottomx+(((xComponent*planeRadius)>>8)*direction);
+	y = bottomy+(((yComponent*planeRadius)>>8)*direction);
 }
 
 int InGame::landscapeCollision(s16 x, s16 y){
@@ -1369,22 +1410,22 @@ inline s16 InGame::wrapAngleDistance(u16 angle1,u16 angle2){
 void InGame::planeCrash(){
 	PA_SetSoundChannelVol(0,0);	//Kill engine sound
 	PA_PlaySound(PA_GetFreeSoundChannel(),crash_sfx,(u32)crash_sfx_size,127,44100);
-	plane->crashed=true;
+	player->crashed=true;
 	PA_SetSpriteY(0, 0, 193);	// Hide sprite
 	planeCrashParticles();
-	u16 plane_gfx = plane->getSpriteInfo()->getGfxRef();
-	delete plane;
+	u16 plane_gfx = player->getSpriteInfo()->getGfxRef();
+	delete player;
 	u16 temp[] = {OBJ_SIZE_32X32};
 	u16* objsize = new u16[2];
 	objsize[0] = temp[0];
 	objsize[1] = temp[1];
 	SpriteInfo* so = new SpriteInfo(32,32,0,plane_gfx,0,0,0,objsize,256,0,true);
-	plane = new PlaneObject(runwayStart<<8,(runwayHeight+12)<<8,16,8,0,0,0,9,60,so);
+	player = new PlaneObject(runwayStart<<8,(runwayHeight+12)<<8,16,8,0,0,0,9,60,so);
 	scrollBackToRunway();
 }
 void InGame::planeCrashParticles(){
-	s16 planevx = plane->vx;
-	s16 planevy = plane->vy;
+	s16 planevx = player->vx;
+	s16 planevy = player->vy;
 	
 	string* name = new string("plane_part");
 
@@ -1403,11 +1444,12 @@ void InGame::planeCrashParticles(){
 	u16 gfxref = planePartgfx;
 	u16 ttl = 240;
 	bool heavy = true;
+	u16 particleCount = 8;
 
-	for(u16 i=0;i<8;i++){
-		s32 startx = (plane->getX()+PA_RandMax(16))<<8;
-		if(i==7){startx=plane->x;}						//Last particle is created at planes current x for tracking reasons
-		s32 starty = (plane->getY()+(plane->getObjectHeight()/2)+PA_RandMax(16))<<8;
+	for(u16 i=0;i<particleCount;i++){
+		s32 startx = (player->getX()+PA_RandMax(16))<<8;
+		if(i==7){startx=player->x;}						//Last particle is created at planes current x for tracking reasons
+		s32 starty = (player->getY()+(player->getObjectHeight()/2)+PA_RandMax(16))<<8;
 		s16 rotspeed = PA_RandMinMax(1400,2800);
 		if(PA_RandMax(1)){rotspeed = 0-rotspeed;}
 		s16 currentAngle = PA_RandMax(511<<8);
@@ -1418,6 +1460,12 @@ void InGame::planeCrashParticles(){
 		
 		//Yey new particle
 		SpriteInfo* so = new SpriteInfo(width,height,currentAngle,gfxref,spriteIndex,rotIndex,palette,objsize,zoom,0,true);
+		
+		//Last particle is 
+		if(i+1==particleCount){
+			startx =player->x;
+			starty =player->y;
+		}
 		particles.push_back(new ParticleObject(name,startx,starty,width,height,currentAngle,rotspeed,particlevx,particlevy,ttl,heavy,so));
 	}
 
@@ -1427,8 +1475,8 @@ void InGame::planeCrashParticles(){
 		drawParticles();
 		updateParticles();
 		ParticleObject* po = particles.back();	//Particle at end will always been bit of plane since this function is called immediately after crash
-		plane->x = po->x;
-		plane->y = po->y;
+		player->x = po->x;
+		player->y = po->y;
 		updateViewport();
 		doDrawing();
 
@@ -1438,11 +1486,11 @@ void InGame::planeCrashParticles(){
 }
 
 void InGame::scrollBackToRunway(){
-	s16 xComponent = PA_Cos(plane->getHeading()>>8);
-	u16 adjust = (plane->getSpeed()<MINPLANESPEED)? plane->getSpeed():MINPLANESPEED;
+	s16 xComponent = PA_Cos(player->getHeading()>>8);
+	u16 adjust = (player->getSpeed()<MINPLANESPEED)? player->getSpeed():MINPLANESPEED;
 
-	s32 targetviewportx = plane->x+(16<<8)-((SWIDTH/2)<<8)+((plane->vx)*40)-((xComponent*((adjust)*40))>>8);
-	s32 targetviewporty = plane->y-((SHEIGHT/2)<<8);
+	s32 targetviewportx = player->x+(16<<8)-((SWIDTH/2)<<8)+((player->vx)*40)-((xComponent*((adjust)*40))>>8);
+	s32 targetviewporty = player->y-((SHEIGHT/2)<<8);
 	if(targetviewporty>0){targetviewporty=0;}
 	if(targetviewportx<0){targetviewportx=0;}
 
@@ -1475,13 +1523,17 @@ void InGame::print_debug(void){
 	PA_ClearTextBg(1);
 	PA_OutputText(1,0, 0, "Title is: %s", currentLevel->levelTitle->c_str());
 	PA_OutputText(1,0, 1, "Viewport x:%d (%d) y:%d (%d)", getViewPortX(),viewportx,getViewPortY(),viewporty);
-	PA_OutputText(1,0, 2, "Plane x:%d (%d) y:%d (%d)", plane->getX(),plane->x,plane->getY(),plane->y);
-	PA_OutputText(1,0, 3, "Plane vx:%d vy:%d", plane->vx,plane->vy);
+	PA_OutputText(1,0, 2, "Plane x:%d (%d) y:%d (%d)", player->getX(),player->x,player->getY(),player->y);
+	PA_OutputText(1,0, 3, "Plane vx:%d vy:%d", player->vx,player->vy);
 	PA_OutputText(1,0, 4, "Landscape sprites used:%d", landscapeIndexs.size());
 	PA_OutputText(1,0, 5, "Available sprites:%d", spritePool.size());
-	PA_OutputText(1,0, 6, "Plane taking off:%d", plane->takingOff);
+	PA_OutputText(1,0, 6, "Plane taking off:%d", player->takingOff);
 	PA_OutputText(1,0, 7, "Particle count:%d", particles.size());
 	PA_OutputText(1,0, 8,"Rot pool size:%d", rotPool.size());
-	PA_OutputText(1,0, 9,"Bombs: %d Ammo: %d Fuel: %d Health %d",plane->totalBombs,plane->totalAmmo,plane->totalFuel,plane->totalHealth);
+	PA_OutputText(1,0, 9,"Bombs: %d Ammo: %d Fuel: %d Health %d",player->totalBombs,player->totalAmmo,player->totalFuel,player->totalHealth);
 	PA_OutputText(1,0, 11,"Landscape test: x:%d",landscapeReferenceObjects[0]->getSpriteInfo()->getObjSize()[1]);
+	if(!particles.empty()){
+		ParticleObject* po = particles.at(0);
+		PA_OutputText(1,0, 13, "Particle test:%d %d", po->getX(),po->getY());
+	}
 }

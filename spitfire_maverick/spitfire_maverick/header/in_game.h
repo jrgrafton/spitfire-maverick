@@ -3,6 +3,7 @@
 
 #include "../header/game_object.h"
 #include "../header/particle_object.h"
+#include "../header/destructable_object.h"
 
 //Main State constants
 const u16 SCREENHOLE =48;	//How big percieved hole between screens is
@@ -52,13 +53,23 @@ class InGame : public State{
 		
 		//Collision based functions (these are called from the relative update routines!)
 		int landscapeCollision(s16 x,s16 y);
-		u16 planeLandscapeCollision();
 		u16 getHeightAtPoint(u16 x);
 		void planeCrash();
 		void planeCrashParticles();
-		bool particleLandscapeCollision(ParticleObject* pa);
 		u16 getNormalAtPoint(u16 x);
 		u16 reflectOverNormal(u16 angle,u16 normal);
+		bool pointInRectangle(s16 pointx,s16 pointy,s16 rectanglex,s16 rectangley,u16 width,u16 height);
+
+		void playerCollisions();   //Check if player is colliding with landscape ls objects or AI
+		u16 planeLandscapeCollision();
+		void getBottomEndPlane(GameObject* go,s16 &frontx,s16 &fronty,s16 direction);
+		bool playerLandscapeObjectCollison();
+
+		void particleCollisions();   //Check if partciles are colliding with anything
+		bool particleLandscapeCollision(ParticleObject* pa);
+		void addParticlesFromObject(DestructableObject* destructable);
+		//void projectileCollisions(); //Prototype will accept particle object
+		//void computerCollisions();	//Prototype will accept AI object
 
 		//Input driven functions
 		void processInput();

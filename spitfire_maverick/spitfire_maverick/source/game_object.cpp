@@ -56,10 +56,10 @@ SpriteInfo* GameObject::getSpriteInfo(){
 }
 
 u16 GameObject::getObjectHeight(){
-	return (height)/(si->getZoom()/256);
+	return (height<<8)/si->getZoom();
 }
 u16 GameObject::getObjectWidth(){
-	return (width)/(si->getZoom()/256);
+	return (width<<8)/si->getZoom();
 }
 void GameObject::setLocation(s32 x,s32 y){
 	this->x=x;

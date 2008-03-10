@@ -8,8 +8,8 @@ GameObject(new string("landscape_object"),startx,starty,width,height,heading,vx,
 	this->health=health;
 	this->particleCount=particleCount;
 	this->destroyedGfxRef=destroyedGfxRef;
-	this->particleInstance=particleInstance;
-	this->destroyed=false;
+	this->particleSpriteInstance=particleSpriteInstance;
+	this->objectDestroyed=false;
 }
 
 //Call base class copy constructor too!
@@ -17,16 +17,18 @@ DestructableObject::DestructableObject(const DestructableObject &object):GameObj
 	this->health=object.health;
 	this->particleCount=object.particleCount;
 	this->destroyedGfxRef=object.destroyedGfxRef;
-	this->particleInstance=new SpriteInfo(*particleInstance);
-	this->destroyed=false;
+	this->particleSpriteInstance=new SpriteInfo(*particleSpriteInstance);
+	this->objectDestroyed=false;
 }
 DestructableObject::~DestructableObject(){
 
 }
 
-void DestructableObject::destroy(){
-	destroyed=false;
+void DestructableObject::destructObject(){
 	this->getSpriteInfo()->setGfxRef(destroyedGfxRef);
+	PA_SetSpriteY(0,this->getSpriteInfo()->getSpriteIndex(),193);
+	this->getSpriteInfo()->setSpriteIndex(-1);
+	this->objectDestroyed=true;
 }
 
 s16 DestructableObject::getHealth(){
@@ -38,9 +40,9 @@ void DestructableObject::setHealth(s16 health){
 u16 DestructableObject::getParticleCount(){
 	return particleCount;
 }
-SpriteInfo* DestructableObject::getParticleInstance(){
-	return particleInstance;
+SpriteInfo* DestructableObject::getParticleSpriteInstance(){
+	return particleSpriteInstance;
 }
 bool DestructableObject::getDestroyed(){
-	return destroyed;
+	return objectDestroyed;
 }
