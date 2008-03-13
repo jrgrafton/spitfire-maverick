@@ -71,7 +71,11 @@
 				>
 			</File>
 			<File
-				RelativePath=".\source\plane_object.cpp"
+				RelativePath=".\source\player_object.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\source\projectile_object.cpp"
 				>
 			</File>
 			<File
@@ -113,7 +117,11 @@
 				>
 			</File>
 			<File
-				RelativePath=".\header\plane_object.h"
+				RelativePath=".\header\player_object.h"
+				>
+			</File>
+			<File
+				RelativePath=".\header\projectile_object.h"
 				>
 			</File>
 			<File

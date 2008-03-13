@@ -43,6 +43,9 @@ extern "C" {
 #include "tree4_image.c"
 #include "tree_destroyed_image.c"
 #include "tower_destroyed_image.c"
+#include "explosion_image.c"
+#include "muzzle_image.c"
+#include "smoke_image.c"
 
 // Palette files : 
 #include "plane_image.pal.c"
@@ -52,6 +55,7 @@ extern "C" {
 #include "spitfire_image.pal.c"
 #include "particles_image.pal.c"
 #include "landscape_allobjects.pal.c"
+#include "sfx_allobjects.pal.c"
 
 // Background Pointers :
 PAGfx_struct background_image = {(void*)background_image_Map, 768, (void*)background_image_Tiles, 49152, (void*)background_image_Pal, (int*)background_image_Info };

@@ -2,9 +2,8 @@
 #include "../header/game_object.h"
 #include "../header/destructable_object.h"
 
-DestructableObject::DestructableObject(s32 startx,s32 starty,u16 width,u16 height,s32 heading,s16 vx, s16 vy,SpriteInfo* si,s16 health,s16 particleCount,s16 destroyedGfxRef,SpriteInfo* particleInstance):
+DestructableObject::DestructableObject(s32 startx,s32 starty,u16 width,u16 height,s32 heading,s16 vx, s16 vy,SpriteInfo* si,s16 health,s16 particleCount,s16 destroyedGfxRef,SpriteInfo* particleSpriteInstance):
 GameObject(new string("landscape_object"),startx,starty,width,height,heading,vx, vy,si){
-	
 	this->health=health;
 	this->particleCount=particleCount;
 	this->destroyedGfxRef=destroyedGfxRef;
@@ -17,7 +16,7 @@ DestructableObject::DestructableObject(const DestructableObject &object):GameObj
 	this->health=object.health;
 	this->particleCount=object.particleCount;
 	this->destroyedGfxRef=object.destroyedGfxRef;
-	this->particleSpriteInstance=new SpriteInfo(*particleSpriteInstance);
+	this->particleSpriteInstance=new SpriteInfo(*object.particleSpriteInstance);
 	this->objectDestroyed=false;
 }
 DestructableObject::~DestructableObject(){

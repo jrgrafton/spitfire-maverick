@@ -8,8 +8,13 @@ ParticleObject::ParticleObject(string* name,s32 startx,s32 starty,u16 width,u16 
 	this->ttl=ttl;
 	this->rotSpeed=rotSpeed;
 	this->heavy=heavy;
-	this->zoom=zoom;
 }
 
 ParticleObject::~ParticleObject(){
+}
+
+ParticleObject::ParticleObject(const ParticleObject &object):GameObject(object){
+	this->ttl =object.ttl;
+	this->rotSpeed=object.rotSpeed;
+	this->heavy=object.heavy;
 }

@@ -1,7 +1,7 @@
 #include "../header/main.h"
 #include "../header/sprite_info.h"
 
-SpriteInfo::SpriteInfo(u16 width,u16 height,s32 angle,s16 gfxref,s16 spriteIndex,s16 rotIndex,s16 paletteIndex,u16* objsize,u16 zoom,u16 doubleSize,bool usesRot){
+SpriteInfo::SpriteInfo(u16 width,u16 height,s32 angle,s16 gfxref,s16 spriteIndex,s16 rotIndex,s16 paletteIndex,u8 obj_shape,u8 obj_size,u16 zoom,u16 doubleSize,u16 priority,bool usesRot,bool usesSprite,bool usesAlpha){
 	this->width=width;
 	this->height=height;
 	this->angle=angle;
@@ -9,10 +9,14 @@ SpriteInfo::SpriteInfo(u16 width,u16 height,s32 angle,s16 gfxref,s16 spriteIndex
 	this->spriteIndex=spriteIndex;
 	this->rotIndex=rotIndex;
 	this->paletteIndex=paletteIndex;
-	this->objsize=objsize;
+	this->obj_shape=obj_shape;
+	this->obj_size=obj_size;
 	this->zoom=zoom;
 	this->doubleSize=doubleSize;
 	this->usesRot=usesRot;
+	this->usesSprite=usesSprite;
+	this->usesAlpha=usesAlpha;
+	this->priority=priority;
 }
 
 //Sprite info copy constructor....needed since this class has an array
@@ -27,15 +31,14 @@ SpriteInfo::SpriteInfo(const SpriteInfo &object){
 	this->zoom=object.zoom;
 	this->doubleSize=object.doubleSize;
 	this->usesRot=object.usesRot;
-	
-	//need to make a copy of the array
-	this->objsize = new u16[2];
-	this->objsize[0] = object.objsize[0];
-	this->objsize[1] = object.objsize[1];
+	this->usesSprite = object.usesSprite;
+	this->obj_shape=object.obj_shape;
+	this->obj_size=object.obj_size;
+	this->usesAlpha=object.usesAlpha;
+	this->priority=object.priority;
 }
 
 SpriteInfo::~SpriteInfo(){
-	delete[] objsize;
 }
 
 u16 SpriteInfo::getSpriteHeight(){
@@ -79,9 +82,6 @@ void SpriteInfo::setSpriteIndex(s16 spriteIndex){
 s16 SpriteInfo::getPaletteIndex(){
 	return paletteIndex;
 }
-u16* SpriteInfo::getObjSize(){
-	return objsize;
-}
 
 bool SpriteInfo::getUsesSprite(){
 	return gfxref>=0;
@@ -89,4 +89,22 @@ bool SpriteInfo::getUsesSprite(){
 
 u16 SpriteInfo::getDoubleSize(){
 	return doubleSize;
+}
+
+u8 SpriteInfo::getObjShape(){
+	return this->obj_shape;
+}
+
+u8 SpriteInfo::getObjSize(){
+	return this->obj_size;
+}
+bool SpriteInfo::getUsesAlpha(){
+	return this->usesAlpha;
+}
+
+void SpriteInfo::setUsesAlpha(bool usesAlpha){
+	this->usesAlpha=usesAlpha;
+}
+u16 SpriteInfo::getPriority(){
+	return this->priority;
 }

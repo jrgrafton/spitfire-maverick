@@ -32,13 +32,22 @@ GameObject::~GameObject(){
 }
 
 
-s16 GameObject::getX(){
-	return x>>8;
+s32 GameObject::getX(){
+	return x;
 }
 
-s16 GameObject::getY(){
-	return y>>8;
+s32 GameObject::getY(){
+	return y;
 }
+
+void GameObject::setX(s32 x){
+	this->x=x;
+}
+
+void GameObject::setY(s32 y){
+	this->y=y;
+}
+
 
 s16 GameObject::getSpeed(){
 	return speed>>8;
@@ -64,5 +73,8 @@ u16 GameObject::getObjectWidth(){
 void GameObject::setLocation(s32 x,s32 y){
 	this->x=x;
 	this->y=y;
+}
+string* GameObject::getName(){
+	return this->name;
 }
 

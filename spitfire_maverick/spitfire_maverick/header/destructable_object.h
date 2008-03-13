@@ -10,7 +10,7 @@ class DestructableObject: public GameObject{
 		SpriteInfo* getParticleSpriteInstance();
 		bool getDestroyed();
 
-		DestructableObject(s32 startx,s32 starty,u16 width,u16 height,s32 heading,s16 vx, s16 vy,SpriteInfo* si,s16 health,s16 particleCount,s16 destroyedGfxRef,SpriteInfo* particleInstance);
+		DestructableObject(s32 startx,s32 starty,u16 width,u16 height,s32 heading,s16 vx, s16 vy,SpriteInfo* si,s16 health,s16 particleCount,s16 destroyedGfxRef,SpriteInfo* particleSpriteInstance);
 		DestructableObject(const DestructableObject &object);	//Copy constructor
 		~DestructableObject();
 	private:

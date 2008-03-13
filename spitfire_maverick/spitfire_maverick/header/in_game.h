@@ -4,6 +4,7 @@
 #include "../header/game_object.h"
 #include "../header/particle_object.h"
 #include "../header/destructable_object.h"
+#include "../header/projectile_object.h"
 
 //Main State constants
 const u16 SCREENHOLE =48;	//How big percieved hole between screens is
@@ -44,32 +45,35 @@ class InGame : public State{
 		void initGraphics();
 		void initSound();
 		void initLanscapeLookup();
+		void initSpecialEffectsLookup();
 		void initLevel();
 		void initRunway();
-		void initPlane();
+		void initPlayer();
 		void processHeightMap(char* fileLine,vector<u16>* heightMap);
 		int addNextHeight(string* line,vector<u16>* heightMap);
 		void addLandscapeObject(s32 x,u16 ref);
 		
-		//Collision based functions (these are called from the relative update routines!)
+		//Collision based functions 
 		int landscapeCollision(s16 x,s16 y);
-		u16 getHeightAtPoint(u16 x);
+		bool pointInRectangleCollision(s16 pointx,s16 pointy,s16 rectanglex,s16 rectangley,u16 width,u16 height);
+		bool circleAndSquareCollision(s16 x0,s16 y0,u16 w0,u16 h0,s16 cx,s16 cy,u16 radius);
+		
+		//Player collisions function
+		void playerCollisions();
+		u16 planeLandscapeCollision();
+		void getBottomEndPlane(GameObject* go,s32 &frontx,s32 &fronty,s16 direction);
+		bool playerLandscapeObjectCollison();
 		void planeCrash();
 		void planeCrashParticles();
-		u16 getNormalAtPoint(u16 x);
-		u16 reflectOverNormal(u16 angle,u16 normal);
-		bool pointInRectangle(s16 pointx,s16 pointy,s16 rectanglex,s16 rectangley,u16 width,u16 height);
-
-		void playerCollisions();   //Check if player is colliding with landscape ls objects or AI
-		u16 planeLandscapeCollision();
-		void getBottomEndPlane(GameObject* go,s16 &frontx,s16 &fronty,s16 direction);
-		bool playerLandscapeObjectCollison();
-
-		void particleCollisions();   //Check if partciles are colliding with anything
+		void scrollBackToRunway();
+		
+		//Called from update particle..particles only collide with landscape
 		bool particleLandscapeCollision(ParticleObject* pa);
 		void addParticlesFromObject(DestructableObject* destructable);
-		//void projectileCollisions(); //Prototype will accept particle object
-		//void computerCollisions();	//Prototype will accept AI object
+		
+		//Projectile collision routine called from update projectiles
+		bool projectileCollision(ProjectileObject* projectile);
+		bool projectileLandscapeObjectCollison(ProjectileObject* projectile);
 
 		//Input driven functions
 		void processInput();
@@ -83,7 +87,7 @@ class InGame : public State{
 		void resetLandscape();
 		void drawProjectiles();
 		void drawParticles();
-		void drawPlane();
+		void drawPlayer();
 		void drawRunway();
 		void drawObject(GameObject* go,u16 priority);
 		
@@ -91,6 +95,9 @@ class InGame : public State{
 		inline u16 taller(u16 a,u16 b);
 		inline u16 smaller(u16 a,u16 b);
 		inline u32 squared(s32 a);
+		u16 getHeightAtPoint(u16 x);
+		u16 getNormalAtPoint(u16 x);
+		u16 reflectOverNormal(u16 angle,u16 normal);
 		inline u16 wrapAngle(s16 angle);
 		inline u16 wrapAngleShifted(s32 angle);
 		inline u16 flipAngle(s16 angle);
@@ -100,14 +107,13 @@ class InGame : public State{
 		
 		//Update functions
 		void doUpdates();
-		void updatePlane();
+		void updatePlayer();
 		u16 getSpeedFromVelocity(s16 vx,s16 vy);
 		void updateViewport();
 		void updateProjectiles();
 		void updateParticles();
 		
 		//Other functions
-		void scrollBackToRunway();
 		void print_debug(void);
 };
 #endif
