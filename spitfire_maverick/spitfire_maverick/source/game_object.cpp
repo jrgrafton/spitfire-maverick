@@ -78,3 +78,9 @@ string* GameObject::getName(){
 	return this->name;
 }
 
+void GameObject::setVx(s16 vx){
+	this->vx=vx;
+}
+void GameObject::setVy(s16 vy){
+	this->vy=vy;
+}

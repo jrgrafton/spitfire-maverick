@@ -7,14 +7,15 @@ class GameObject{
 		
 		s16 vx, vy; // xy trajectory
 		s32 speed;
-		
-		
 
 		//Functions
 		s32 getX();
 		s32 getY();
 		void setX(s32 x);
 		void setY(s32 y);
+		void setVx(s16);
+		void setVy(s16);
+
 		s32 getHeading();
 		void setHeading(s32 heading);
 		s16 getSpeed();

@@ -18,3 +18,15 @@ ParticleObject::ParticleObject(const ParticleObject &object):GameObject(object){
 	this->rotSpeed=object.rotSpeed;
 	this->heavy=object.heavy;
 }
+
+bool ParticleObject::isHeavy(){
+	return this->heavy;
+}
+
+void ParticleObject::setRotSpeed(s16 rotSpeed){
+	this->rotSpeed=rotSpeed;
+}
+
+u16 ParticleObject::getTtl(){
+	return this->ttl;
+}

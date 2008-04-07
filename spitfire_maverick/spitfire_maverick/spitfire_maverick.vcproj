@@ -47,11 +47,23 @@
 			UniqueIdentifier="{4FC737F1-C7A5-4376-A066-2A32D752A2FF}"
 			>
 			<File
+				RelativePath=".\source\ai_object.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\source\animation_info.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\source\destructable_object.cpp"
 				>
 			</File>
 			<File
 				RelativePath=".\source\game_object.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\source\hardpoint_object.cpp"
 				>
 			</File>
 			<File
@@ -93,11 +105,23 @@
 			UniqueIdentifier="{93995380-89BD-4b04-88EB-625FBE52EBFB}"
 			>
 			<File
+				RelativePath=".\header\ai_object.h"
+				>
+			</File>
+			<File
+				RelativePath=".\header\animation_info.h"
+				>
+			</File>
+			<File
 				RelativePath=".\header\destructable_object.h"
 				>
 			</File>
 			<File
 				RelativePath=".\header\game_object.h"
+				>
+			</File>
+			<File
+				RelativePath=".\header\hardpoint_object.h"
 				>
 			</File>
 			<File

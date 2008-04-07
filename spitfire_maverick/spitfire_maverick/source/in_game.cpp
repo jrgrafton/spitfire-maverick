@@ -1,4 +1,4 @@
-//internal headers
+//internal header
 #include "../header/main.h"
 #include "../header/game_object.h"
 #include "../header/sprite_info.h"
@@ -6,6 +6,8 @@
 #include "../header/particle_object.h"
 #include "../header/destructable_object.h"
 #include "../header/projectile_object.h"
+#include "../header/ai_object.h"
+#include "../header/hardpoint_object.h"
 #include "../header/level.h"
 #include "../header/state.h"
 #include "../header/in_game.h"
@@ -34,13 +36,21 @@ u16 inGame = 0;
 //Level stuff
 Level* currentLevel;
 
-//Game objects representing active projectiles
+//Projectile objects and lookup
 vector<ProjectileObject*> projectiles;
+ProjectileObject* projectileReferenceObjects[5];
 
-//Particle objects
+//Particle objects and lookup
 vector<ParticleObject*> particles;
-u16 planePartgfx;					//Store ref to particle gfx for when we create them
-ParticleObject* effectsReferenceObjects[3];
+ParticleObject* particleReferenceObjects[10];
+
+//Landscape objects and lookup
+vector<DestructableObject*> landscapeObjects;
+DestructableObject* landscapeReferenceObjects[20];
+
+//AI objects lookup
+vector<AIObject*> AIObjects;
+AIObject* AIReferenceObjects[6];
 
 //Sprite pool of available indexes
 vector<u16> spritePool;
@@ -48,10 +58,6 @@ vector<u16> rotPool; //Pool of available rotsets
 
 //vector of indexes taken by landscape tiles
 vector<u16> landscapeIndexs;
-
-//Landscape Object stuff
-DestructableObject* landscapeReferenceObjects[6];
-vector<DestructableObject*> landscapeObjects;
 
 //View port
 s32 viewportx =0;
@@ -67,19 +73,13 @@ s32 bgscroll=0;
 
 //Represents player plane
 PlayerObject* player;
+u16 bombRefGfx;
 
 //Represents runway (needs to be part of level object)
 u16 runwayStart;
 u16 runwayEnd;
 u16 runwayHeight;
 vector<GameObject*> runwayObjects;
-
-//Particle debug
-s16 overlapTest =0;
-s16 normalTest =0;
-s16 reflectTest = 0;
-
-u16 test = 0;
 
 //Do lookups if final game runs too slow!
 #ifndef DEBUG
@@ -154,21 +154,23 @@ void InGame::initGraphics(){
 		PA_InitText(1,0); // On the top screen
 		PA_SetTextCol(1,31,31,31);
 	#endif
+
+	//Palettes for primitive drawing
 	PA_SetBgPalCol(0, 2, PA_RGB(31, 0, 0));
 	PA_SetBgPalCol(0, 3, PA_RGB(0, 31, 0));
 	PA_SetBgPalCol(0, 4, PA_RGB(31, 31, 31));
 	PA_SetBgPalCol(0, 5, PA_RGB(19, 19, 5));
+	PA_SetBgPalCol(0, 6, PA_RGB(28,28,28));
 
 	//Load palattes
 	PA_LoadSpritePal(0,0,(void*)spitfire_image_Pal);
 	PA_LoadSpritePal(0,1,(void*)grass_image_Pal);
-	PA_LoadSpritePal(0,2,(void*)runway_image_Pal);
-	PA_LoadSpritePal(0,3,(void*)particles_image_Pal);
-	PA_LoadSpritePal(0,4,(void*)landscape_allobjects_Pal);
-	PA_LoadSpritePal(0,5,(void*)sfx_allobjects_Pal);
-
-	//Init gfx ref for particles
-	planePartgfx = PA_CreateGfx(0, (void*)plane_piece_particles_image_Sprite, OBJ_SIZE_8X8, 1);
+	PA_LoadSpritePal(0,2,(void*)runway_image_Pal);	
+	PA_LoadSpritePal(0,3,(void*)landscape_collection1_Pal);
+	PA_LoadSpritePal(0,4,(void*)landscape_collestion2_Pal);
+	PA_LoadSpritePal(0,5,(void*)trees_particles_bomb_Pal);
+	PA_LoadSpritePal(0,6,(void*)bomb_explosion_Pal);
+	PA_LoadSpritePal(0,7,(void*)ai_Pal);
 
 	//Init alpha
 	PA_EnableSpecialFx(0,SFX_ALPHA,0,SFX_BG0 | SFX_BG1 | SFX_BG2 | SFX_BG3 | SFX_BD);
@@ -179,85 +181,248 @@ void InGame::initGraphics(){
 	PA_SetBgPrio(0,2,3);
 	PA_InitSpriteExtPrio(1); // Enable extended priorities
 
+	//Init particle lookup needs to be before landscape lookup!!
+	initParticleLookup();
+
 	//Init landscape lookup
 	initLanscapeLookup();
 
-	//Init Special effects lookup
-	initSpecialEffectsLookup();
+	//Init projectile lookup
+	initProjectileLookup();
+
+	//Init AI lookup
+	initAILookup();
 }
+void InGame::initAILookup(){
+	//First lets lookup hardpoint refences
+	u16 aaTurretSpriteGfx =  PA_CreateGfx(0, (void*)nazi1_turret_image_Sprite, OBJ_SIZE_64X32,1);
+	SpriteInfo* aaTurretSprite = new SpriteInfo(64,32,0,aaTurretSpriteGfx,-1,-1,7,OBJ_SIZE_64X32,256,1,4,true,true,false);
+	ProjectileObject* aaTurrentProjectile = projectileReferenceObjects[4];
+	HardpointObject* aaTurret = new HardpointObject(0,0,64,32,128,aaTurretSprite,0,4,60,3,256,0,256,aaTurrentProjectile);
+
+}
+
 void InGame::addLandscapeObject(s32 x,u16 ref){
 	DestructableObject* object = new DestructableObject(*landscapeReferenceObjects[ref]);
 	SpriteInfo* si = object->getSpriteInfo();
 	s32 y = getHeightAtPoint(x+si->getSpriteWidth()/2);
-	s32 offset = object->getObjectHeight();
+	s32 offset = si->getSpriteHeight();
 	object->setLocation(x<<8,(y-offset+4)<<8);
 	landscapeObjects.push_back(object);
 }
 
+void InGame::initProjectileLookup(){
+	SpriteInfo* bulletSpriteInfo = new SpriteInfo(-1,-1,0,-1,-1,-1,5,0,0,256,0,2,false,false,false);
+	ProjectileObject* playerBulletObject = new ProjectileObject(new string("bullet"),0,0,1,6,0,0,0,bulletSpriteInfo,-1,1,10,true);
+
+	u16 bombGfx = PA_CreateGfx(0, (void*)bomb_image_Sprite, OBJ_SIZE_16X8, 1);
+	SpriteInfo* bombSpriteInfo = new SpriteInfo(16,8,0,bombGfx,-1,-1,5,OBJ_SIZE_16X8,540,1,2,true,true,false);
+	ProjectileObject* playerBombObject = new ProjectileObject(new string("bomb"),0,0,16,8,0,0,0,bombSpriteInfo,-1,5,1000,true,new ParticleObject(*particleReferenceObjects[6]));
+	
+	SpriteInfo* tankShellSpriteInfo = new SpriteInfo(-1,-1,0,-1,-1,-1,5,0,0,256,0,2,false,false,false);
+	ProjectileObject* tankShellObject = new ProjectileObject(new string("shell"),0,0,2,4,0,0,0,tankShellSpriteInfo,-1,1,10,true,new ParticleObject(*particleReferenceObjects[7]));
+
+	SpriteInfo* humanRocketSpriteInfo = new SpriteInfo(-1,-1,0,-1,-1,-1,6,0,0,256,0,2,false,false,false);
+	ProjectileObject* humanRocketObject = new ProjectileObject(new string("rocket"),0,0,2,4,0,0,0,humanRocketSpriteInfo,-1,1,10,true,new ParticleObject(*particleReferenceObjects[8]));
+	
+	u16 aaShellGfx = PA_CreateGfx(0, (void*)nazi1_projectile_image_Sprite, OBJ_SIZE_8X8, 1);
+	SpriteInfo* aaShellSpriteInfo = new SpriteInfo(8,8,0,aaShellGfx,-1,-1,5,OBJ_SIZE_8X8,256,0,2,false,true,false);
+	ProjectileObject* aaShellObject = new ProjectileObject(new string("shell"),0,0,2,4,0,0,0,aaShellSpriteInfo,-1,1,10,true,new ParticleObject(*particleReferenceObjects[9]));
+
+	projectileReferenceObjects[0] = playerBulletObject;
+	projectileReferenceObjects[1] = playerBombObject;
+	projectileReferenceObjects[2] = tankShellObject;
+	projectileReferenceObjects[3] = humanRocketObject;
+	projectileReferenceObjects[4] = aaShellObject;
+}
 void InGame::initLanscapeLookup(){
 	//Now create all gfx ref
 	u16 treeOneGfx = PA_CreateGfx(0, (void*)tree1_image_Sprite, OBJ_SIZE_32X32, 1);
 	u16 treeTwoGfx = PA_CreateGfx(0, (void*)tree2_image_Sprite, OBJ_SIZE_32X32, 1);
 	u16 treeThreeGfx = PA_CreateGfx(0, (void*)tree3_image_Sprite, OBJ_SIZE_32X32, 1);
 	u16 treeFourGfx = PA_CreateGfx(0, (void*)tree4_image_Sprite, OBJ_SIZE_32X32, 1);
-	u16 towerAlliesGfx = PA_CreateGfx(0, (void*)tower_allies_image_Sprite, OBJ_SIZE_32X64, 1);
-	u16 towerGermanGfx = PA_CreateGfx(0, (void*)tower_german_image_Sprite, OBJ_SIZE_32X64, 1);
+	u16 towerAlliesGfx = PA_CreateGfx(0, (void*)tower1_image_Sprite, OBJ_SIZE_32X64, 1);
+	u16 towerGermanGfx = PA_CreateGfx(0, (void*)tower2_image_Sprite, OBJ_SIZE_32X64, 1);
+	u16 buildOneGfx = PA_CreateGfx(0, (void*)build1_image_Sprite, OBJ_SIZE_64X32, 1);
+	u16 buildTwoGfx = PA_CreateGfx(0, (void*)build2_image_Sprite, OBJ_SIZE_64X32, 1);
+	u16 buildThreeGfx = PA_CreateGfx(0, (void*)build3_image_Sprite, OBJ_SIZE_64X32, 1);
+	u16 buildFourGfx = PA_CreateGfx(0, (void*)build4_image_Sprite, OBJ_SIZE_64X32, 1);
+	u16 buildFive1o3Gfx = PA_CreateGfx(0, (void*)build51o3_image_Sprite, OBJ_SIZE_32X64, 1);
+	u16 buildFive2o3Gfx = PA_CreateGfx(0, (void*)build52o3_image_Sprite, OBJ_SIZE_64X64, 1);
+	u16 buildFive3o3Gfx = PA_CreateGfx(0, (void*)build53o3_image_Sprite, OBJ_SIZE_32X64, 1);
+	u16 buildSix1o3Gfx = PA_CreateGfx(0, (void*)build61o3_image_Sprite, OBJ_SIZE_32X64, 1);
+	u16 buildSix2o3Gfx = PA_CreateGfx(0, (void*)build62o3_image_Sprite, OBJ_SIZE_64X64, 1);
+	u16 buildSix3o3Gfx = PA_CreateGfx(0, (void*)build63o3_image_Sprite, OBJ_SIZE_32X64, 1);
+	u16 buildSevenGfx = PA_CreateGfx(0, (void*)build7_image_Sprite, OBJ_SIZE_64X32, 1);
+	u16 buildEightGfx = PA_CreateGfx(0, (void*)build8_image_Sprite, OBJ_SIZE_64X32, 1);
+	u16 church1o2Gfx = PA_CreateGfx(0, (void*)church1o2_image_Sprite, OBJ_SIZE_64X32, 1);
+	u16 church2o2Gfx = PA_CreateGfx(0, (void*)church2o2_image_Sprite, OBJ_SIZE_32X64, 1);
 	
-	//Now create all particle sprite info objects
-	SpriteInfo* treeParticleSpriteInfo = new SpriteInfo(8,8,0,planePartgfx,-1,-1,3,OBJ_SIZE_8X8,350,0,2,true,true,false);
-	SpriteInfo* towerParticleSpriteInfo = new SpriteInfo(8,8,0,planePartgfx,-1,-1,3,OBJ_SIZE_8X8,350,0,2,true,true,false);
+	//Destroyed gfx ref
+	u16 treeOneDestGfx = PA_CreateGfx(0, (void*)tree1_dest_image_Sprite, OBJ_SIZE_32X32, 1);
+	u16 treeTwoDestGfx = PA_CreateGfx(0, (void*)tree2_dest_image_Sprite, OBJ_SIZE_32X32, 1);
+	u16 treeThreeDestGfx = PA_CreateGfx(0, (void*)tree3_dest_image_Sprite, OBJ_SIZE_32X32, 1);
+	u16 treeFourDestGfx = PA_CreateGfx(0, (void*)tree4_dest_image_Sprite, OBJ_SIZE_32X32, 1);
+	u16 towerAlliesDestGfx = PA_CreateGfx(0, (void*)tower1_dest_image_Sprite, OBJ_SIZE_32X64, 1);
+	u16 towerGermanDestGfx = PA_CreateGfx(0, (void*)tower2_dest_image_Sprite, OBJ_SIZE_32X64, 1);
+	u16 buildOneDestGfx = PA_CreateGfx(0, (void*)build1_dest_image_Sprite, OBJ_SIZE_64X32, 1);
+	u16 buildTwoDestGfx = PA_CreateGfx(0, (void*)build2_dest_image_Sprite, OBJ_SIZE_64X32, 1);
+	u16 buildThreeDestGfx = PA_CreateGfx(0, (void*)build3_dest_image_Sprite, OBJ_SIZE_64X32, 1);
+	u16 buildFourDestGfx = PA_CreateGfx(0, (void*)build4_dest_image_Sprite, OBJ_SIZE_64X32, 1);
+	u16 buildFive1o3DestGfx = PA_CreateGfx(0, (void*)build51o3_dest_image_Sprite, OBJ_SIZE_32X64, 1);
+	u16 buildFive2o3DestGfx = PA_CreateGfx(0, (void*)build52o3_dest_image_Sprite, OBJ_SIZE_64X64, 1);
+	u16 buildFive3o3DestGfx = PA_CreateGfx(0, (void*)build53o3_dest_image_Sprite, OBJ_SIZE_32X64, 1);
+	u16 buildSix1o3DestGfx = PA_CreateGfx(0, (void*)build61o3_dest_image_Sprite, OBJ_SIZE_32X64, 1);
+	u16 buildSix2o3DestGfx = PA_CreateGfx(0, (void*)build62o3_dest_image_Sprite, OBJ_SIZE_64X64, 1);
+	u16 buildSix3o3DestGfx = PA_CreateGfx(0, (void*)build63o3_dest_image_Sprite, OBJ_SIZE_32X64, 1);
+	u16 buildSevenDestGfx = PA_CreateGfx(0, (void*)build7_dest_image_Sprite, OBJ_SIZE_64X32, 1);
+	u16 buildEightDestGfx = PA_CreateGfx(0, (void*)build8_dest_image_Sprite, OBJ_SIZE_64X32, 1);
+	u16 church1o2DestGfx = PA_CreateGfx(0, (void*)church1o2_dest_image_Sprite, OBJ_SIZE_64X32, 1);
+	u16 church2o2DestGfx = PA_CreateGfx(0, (void*)church2o2_dest_image_Sprite, OBJ_SIZE_32X64, 1);
 
-	u16 destroyedTreeGfxRef=PA_CreateGfx(0, (void*)tree_destroyed_image_Sprite, OBJ_SIZE_32X32, 1);
-	u16 destroyedTowerGfxRef=PA_CreateGfx(0, (void*)tower_destroyed_image_Sprite, OBJ_SIZE_32X64, 1);
-	
+
 	//Now go onto create all landscape objects with their sprite info objects
-	SpriteInfo* treeSpriteOneInfo = new SpriteInfo(32,32,0,treeOneGfx,-1,-1,4,OBJ_SIZE_32X32,256,0,1,false,true,false);
-	DestructableObject* treeObjectOne = new DestructableObject(0,0,32,32,0,0,0,treeSpriteOneInfo,100,5,destroyedTreeGfxRef,treeParticleSpriteInfo);
+	SpriteInfo* treeSpriteOneInfo = new SpriteInfo(32,32,0,treeOneGfx,-1,-1,5,OBJ_SIZE_32X32,256,0,1,false,true,false);
+	DestructableObject* treeObjectOne = new DestructableObject(0,0,32,32,0,0,0,treeSpriteOneInfo,100,5,treeOneDestGfx,new ParticleObject(*particleReferenceObjects[3]));
 	
-	SpriteInfo* treeSpriteTwoInfo = new SpriteInfo(32,32,0,treeTwoGfx,-1,-1,4,OBJ_SIZE_32X32,256,0,1,false,true,false);
-	DestructableObject* treeObjectTwo = new DestructableObject(0,0,32,32,0,0,0,treeSpriteTwoInfo,100,5,destroyedTreeGfxRef,treeParticleSpriteInfo);
+	SpriteInfo* treeSpriteTwoInfo = new SpriteInfo(32,32,0,treeTwoGfx,-1,-1,5,OBJ_SIZE_32X32,256,0,1,false,true,false);
+	DestructableObject* treeObjectTwo = new DestructableObject(0,0,32,32,0,0,0,treeSpriteTwoInfo,100,5,treeTwoDestGfx,new ParticleObject(*particleReferenceObjects[3]));
 	
-	SpriteInfo* treeSpriteThreeInfo = new SpriteInfo(32,32,0,treeThreeGfx,-1,-1,4,OBJ_SIZE_32X32,256,0,1,false,true,false);
-	DestructableObject* treeObjectThree = new DestructableObject(0,0,32,32,0,0,0,treeSpriteThreeInfo,100,5,destroyedTreeGfxRef,treeParticleSpriteInfo);
+	SpriteInfo* treeSpriteThreeInfo = new SpriteInfo(32,32,0,treeThreeGfx,-1,-1,5,OBJ_SIZE_32X32,256,0,1,false,true,false);
+	DestructableObject* treeObjectThree = new DestructableObject(0,0,32,32,0,0,0,treeSpriteThreeInfo,100,5,treeThreeDestGfx,new ParticleObject(*particleReferenceObjects[3]));
 	
-	SpriteInfo* treeSpriteFourInfo = new SpriteInfo(32,32,0,treeFourGfx,-1,-1,4,OBJ_SIZE_32X32,256,0,1,false,true,false);
-	DestructableObject* treeObjectFour = new DestructableObject(0,0,32,32,0,0,0,treeSpriteFourInfo,100,5,destroyedTreeGfxRef,treeParticleSpriteInfo);
-	
+	SpriteInfo* treeSpriteFourInfo = new SpriteInfo(32,32,0,treeFourGfx,-1,-1,5,OBJ_SIZE_32X32,256,0,1,false,true,false);
+	DestructableObject* treeObjectFour = new DestructableObject(0,0,32,32,0,0,0,treeSpriteFourInfo,100,5,treeFourDestGfx,new ParticleObject(*particleReferenceObjects[3]));
+
 	SpriteInfo* towerAlliesSpriteInfo = new SpriteInfo(32,64,0,towerAlliesGfx,-1,-1,4,OBJ_SIZE_32X64,256,0,1,false,true,false);
-	DestructableObject* towerAlliesObject = new DestructableObject(0,0,20,64,0,0,0,towerAlliesSpriteInfo,1000,5,destroyedTowerGfxRef,towerParticleSpriteInfo);
+	DestructableObject* towerAlliesObject = new DestructableObject(0,0,20,64,0,0,0,towerAlliesSpriteInfo,1000,5,towerAlliesDestGfx,new ParticleObject(*particleReferenceObjects[1]));
 	
 	SpriteInfo* towerGermanSpriteInfo = new SpriteInfo(32,64,0,towerGermanGfx,-1,-1,4,OBJ_SIZE_32X64,256,0,1,false,true,false);
-	DestructableObject* towerGermanObject = new DestructableObject(0,0,20,64,0,0,0,towerGermanSpriteInfo,1000,5,destroyedTowerGfxRef,towerParticleSpriteInfo);
+	DestructableObject* towerGermanObject = new DestructableObject(0,0,20,64,0,0,0,towerGermanSpriteInfo,1000,5,towerGermanDestGfx,new ParticleObject(*particleReferenceObjects[1]));
+
+	SpriteInfo* buildOneSpriteInfo = new SpriteInfo(64,32,0,buildOneGfx,-1,-1,3,OBJ_SIZE_64X32,256,0,1,false,true,false);
+	DestructableObject* buildOneObject = new DestructableObject(0,0,64,32,0,0,0,buildOneSpriteInfo,1000,5,buildOneDestGfx,new ParticleObject(*particleReferenceObjects[0]));
+
+	SpriteInfo* buildTwoSpriteInfo = new SpriteInfo(64,32,0,buildTwoGfx,-1,-1,3,OBJ_SIZE_64X32,256,0,1,false,true,false);
+	DestructableObject* buildTwoObject = new DestructableObject(0,0,64,32,0,0,0,buildTwoSpriteInfo,1000,5,buildTwoDestGfx,new ParticleObject(*particleReferenceObjects[1]));
+
+	SpriteInfo* buildThreeSpriteInfo = new SpriteInfo(64,32,0,buildThreeGfx,-1,-1,3,OBJ_SIZE_64X32,256,0,1,false,true,false);
+	DestructableObject* buildThreeObject = new DestructableObject(0,0,64,32,0,0,0,buildThreeSpriteInfo,1000,5,buildThreeDestGfx,new ParticleObject(*particleReferenceObjects[1]));
+
+	SpriteInfo* buildFourSpriteInfo = new SpriteInfo(64,32,0,buildFourGfx,-1,-1,3,OBJ_SIZE_64X32,256,0,1,false,true,false);
+	DestructableObject* buildFourObject = new DestructableObject(0,0,64,32,0,0,0,buildFourSpriteInfo,1000,5,buildFourDestGfx,new ParticleObject(*particleReferenceObjects[1]));
+
+	SpriteInfo* buildFive1o3SpriteInfo = new SpriteInfo(32,64,0,buildFive1o3Gfx,-1,-1,3,OBJ_SIZE_32X64,256,0,1,false,true,false);
+	DestructableObject* buildFive1o3Object = new DestructableObject(0,0,32,64,0,0,0,buildFive1o3SpriteInfo,1000,5,buildFive1o3DestGfx,new ParticleObject(*particleReferenceObjects[0]));
+
+	SpriteInfo* buildFive2o3SpriteInfo = new SpriteInfo(64,64,0,buildFive2o3Gfx,-1,-1,3,OBJ_SIZE_64X64,256,0,1,false,true,false);
+	DestructableObject* buildFive2o3Object = new DestructableObject(0,0,64,40,0,0,0,buildFive2o3SpriteInfo,1000,5,buildFive2o3DestGfx,new ParticleObject(*particleReferenceObjects[0]));
+
+	SpriteInfo* buildFive3o3SpriteInfo = new SpriteInfo(32,64,0,buildFive3o3Gfx,-1,-1,3,OBJ_SIZE_32X64,256,0,1,false,true,false);
+	DestructableObject* buildFive3o3Object = new DestructableObject(0,0,20,64,0,0,0,buildFive3o3SpriteInfo,1000,5,buildFive3o3DestGfx,new ParticleObject(*particleReferenceObjects[0]));
+
+	SpriteInfo* buildSix1o3SpriteInfo = new SpriteInfo(32,64,0,buildSix1o3Gfx,-1,-1,3,OBJ_SIZE_32X64,256,0,1,false,true,false);
+	DestructableObject* buildSix1o3Object = new DestructableObject(0,0,32,64,0,0,0,buildSix1o3SpriteInfo,1000,5,buildSix1o3DestGfx,new ParticleObject(*particleReferenceObjects[0]));
+
+	SpriteInfo* buildSix2o3SpriteInfo = new SpriteInfo(64,64,0,buildSix2o3Gfx,-1,-1,3,OBJ_SIZE_64X64,256,0,1,false,true,false);
+	DestructableObject* buildSix2o3Object = new DestructableObject(0,0,64,40,0,0,0,buildSix2o3SpriteInfo,1000,5,buildSix2o3DestGfx,new ParticleObject(*particleReferenceObjects[0]));
+
+	SpriteInfo* buildSix3o3SpriteInfo = new SpriteInfo(32,64,0,buildSix3o3Gfx,-1,-1,3,OBJ_SIZE_32X64,256,0,1,false,true,false);
+	DestructableObject* buildSix3o3Object = new DestructableObject(0,0,32,64,0,0,0,buildSix3o3SpriteInfo,1000,5,buildSix3o3DestGfx,new ParticleObject(*particleReferenceObjects[0]));
+	
+	SpriteInfo* buildSevenSpriteInfo = new SpriteInfo(64,32,0,buildSevenGfx,-1,-1,4,OBJ_SIZE_64X32,400,0,1,true,true,false);
+	DestructableObject* buildSevenObject = new DestructableObject(0,0,64,32,0,0,0,buildSevenSpriteInfo,1000,5,buildSevenDestGfx,new ParticleObject(*particleReferenceObjects[1]));
+
+	SpriteInfo* buildEightSpriteInfo = new SpriteInfo(64,32,0,buildEightGfx,-1,-1,4,OBJ_SIZE_64X32,400,0,1,true,true,false);
+	DestructableObject* buildEightObject = new DestructableObject(0,0,64,32,0,0,0,buildEightSpriteInfo,1000,5,buildEightDestGfx,new ParticleObject(*particleReferenceObjects[2]));
+
+	SpriteInfo* church1o2SpriteInfo = new SpriteInfo(64,32,0,church1o2Gfx,-1,-1,4,OBJ_SIZE_64X32,256,0,1,false,true,false);
+	DestructableObject* church1o2Object = new DestructableObject(0,0,64,32,0,0,0,church1o2SpriteInfo,1000,5,church1o2DestGfx,new ParticleObject(*particleReferenceObjects[1]));
+
+	SpriteInfo* church2o2SpriteInfo = new SpriteInfo(32,64,0,church2o2Gfx,-1,-1,4,OBJ_SIZE_32X64,256,0,1,false,true,false);
+	DestructableObject* church2o2Object = new DestructableObject(0,0,32,64,0,0,0,church2o2SpriteInfo,1000,5,church2o2DestGfx,new ParticleObject(*particleReferenceObjects[0]));
 
 	//Now put all objects in an array to be looked up
-	landscapeReferenceObjects[5] = treeObjectOne;
-	landscapeReferenceObjects[4] = treeObjectTwo;
-	landscapeReferenceObjects[3] = treeObjectThree;
-	landscapeReferenceObjects[2] = treeObjectFour;
-	landscapeReferenceObjects[1] = towerAlliesObject;
-	landscapeReferenceObjects[0] = towerGermanObject;
-}
+	landscapeReferenceObjects[0] = treeObjectOne;
+	landscapeReferenceObjects[1] = treeObjectTwo;
+	landscapeReferenceObjects[2] = treeObjectThree;
+	landscapeReferenceObjects[3] = treeObjectFour;
+	landscapeReferenceObjects[4] = towerAlliesObject;
+	landscapeReferenceObjects[5] = towerGermanObject;
+	landscapeReferenceObjects[6] = buildOneObject;
+	landscapeReferenceObjects[7] = buildTwoObject;
+	landscapeReferenceObjects[8] = buildThreeObject;
+	landscapeReferenceObjects[9] = buildFourObject;
+	landscapeReferenceObjects[10] = buildFive1o3Object;
+	landscapeReferenceObjects[11] = buildFive2o3Object;
+	landscapeReferenceObjects[12] = buildFive3o3Object;
+	landscapeReferenceObjects[13] = buildSix1o3Object;
+	landscapeReferenceObjects[14] = buildSix2o3Object;
+	landscapeReferenceObjects[15] = buildSix3o3Object;
+	landscapeReferenceObjects[16] = buildSevenObject;
+	landscapeReferenceObjects[17] = buildEightObject;
+	landscapeReferenceObjects[18] = church1o2Object;
+	landscapeReferenceObjects[19] = church2o2Object;
+} 
 
-void InGame::initSpecialEffectsLookup(){
+void InGame::initParticleLookup(){
 	//Now create all gfx ref
-	u16 bombExplosionGfx = PA_CreateGfx(0, (void*)explosion_image_Sprite, OBJ_SIZE_32X32, 1);
-	u16 muzzleGfx = PA_CreateGfx(0, (void*)muzzle_image_Sprite, OBJ_SIZE_16X8, 1);
+	u16 buildPart1Gfx = PA_CreateGfx(0, (void*)b_part1_image_Sprite, OBJ_SIZE_8X8, 1);
+	u16 buildPart2Gfx = PA_CreateGfx(0, (void*)b_part2_image_Sprite, OBJ_SIZE_8X8, 1);
+	u16 buildPart3Gfx = PA_CreateGfx(0, (void*)b_part3_image_Sprite, OBJ_SIZE_8X8, 1);
+	u16 treePartGfx = PA_CreateGfx(0, (void*)t_part_image_Sprite, OBJ_SIZE_8X8, 1);
+	u16 planePartGfx = PA_CreateGfx(0, (void*)p_part_image_Sprite, OBJ_SIZE_8X8, 1);
 	u16 smokeGfx = PA_CreateGfx(0, (void*)smoke_image_Sprite, OBJ_SIZE_8X8, 1);
+	u16 aaSmokeGfx = PA_CreateGfx(0, (void*)nazi1_projectile_particle_image_Sprite, OBJ_SIZE_32X32, 1);
+	u16 explosionGfx = PA_CreateGfx(0, (void*)bomb_explosion_image_Sprite, OBJ_SIZE_32X32, 1);
+
+	//Now go onto create all particle ref objects
+	SpriteInfo* buildPart1SpriteInfo = new SpriteInfo(8,8,0,buildPart1Gfx,-1,-1,5,OBJ_SIZE_8X8,256,1,0,true,true,false);
+	ParticleObject* buildPart1Particle = new ParticleObject(new string("particle"),0,0,8,8,0,0,0,0,180,true,buildPart1SpriteInfo);
 	
-	//Now go onto create all landscape objects with their sprite info objects
-	SpriteInfo* bombExplosionSpriteInfo = new SpriteInfo(32,32,0,bombExplosionGfx,-1,-1,5,OBJ_SIZE_32X32,256,0,0,false,true,false);
-	ParticleObject* bombExplosionParticle = new ParticleObject(new string("particle"),0,0,32,32,0,0,0,0,120,false,bombExplosionSpriteInfo);
+	SpriteInfo* buildPart2SpriteInfo = new SpriteInfo(8,8,0,buildPart2Gfx,-1,-1,5,OBJ_SIZE_8X8,256,1,0,true,true,false);
+	ParticleObject* buildPart2Particle = new ParticleObject(new string("particle"),0,0,8,8,0,0,0,0,180,true,buildPart2SpriteInfo);
 	
-	SpriteInfo* muzzleSpriteInfo = new SpriteInfo(16,8,0,muzzleGfx,-1,-1,5,OBJ_SIZE_16X8,256,1,0,true,true,false);
-	ParticleObject* muzzleParticle = new ParticleObject(new string("particle"),0,0,16,8,0,0,0,0,2,false,muzzleSpriteInfo);
+	SpriteInfo* buildPart3SpriteInfo = new SpriteInfo(8,8,0,buildPart3Gfx,-1,-1,5,OBJ_SIZE_8X8,256,1,0,true,true,false);
+	ParticleObject* buildPart3Particle = new ParticleObject(new string("particle"),0,0,8,8,0,0,0,0,180,true,buildPart3SpriteInfo);
 	
-	SpriteInfo* smokeSpriteInfo = new SpriteInfo(8,8,0,smokeGfx,-1,-1,5,OBJ_SIZE_8X8,480,1,4,true,true,true);
-	ParticleObject* smokeParticle = new ParticleObject(new string("particle"),0,0,8,8,0,0,0,0,60,false,smokeSpriteInfo);
+	AnimationInfo* treePartFrameInfo = new AnimationInfo(0,3,0,false);
+	SpriteInfo* treePartSpriteInfo = new SpriteInfo(8,8,0,treePartGfx,-1,-1,5,OBJ_SIZE_8X8,256,1,0,true,true,false,treePartFrameInfo,(void*)t_part_image_Sprite);
+	ParticleObject* treePartParticle = new ParticleObject(new string("particle"),0,0,8,8,0,0,0,0,180,true,treePartSpriteInfo);
 	
+	AnimationInfo* planePartFrameInfo = new AnimationInfo(0,3,0,false);  //Using animation object so that single particle can have multiple images
+	SpriteInfo* planePartSpriteInfo = new SpriteInfo(8,8,0,planePartGfx,-1,-1,5,OBJ_SIZE_8X8,300,1,0,true,true,false,planePartFrameInfo,(void*)p_part_image_Sprite);
+	ParticleObject* planePartParticle = new ParticleObject(new string("particle"),0,0,8,8,0,0,0,0,240,true,planePartSpriteInfo);
+
+	SpriteInfo* smokeSpriteInfo = new SpriteInfo(8,8,0,smokeGfx,-1,-1,5,OBJ_SIZE_8X8,480,1,0,true,true,true);
+	ParticleObject* smokeParticle = new ParticleObject(new string("particle"),0,0,8,8,0,0,0,0,120,false,smokeSpriteInfo);
+	
+	AnimationInfo* bombExplosionAnimation = new AnimationInfo(0,29,2,true);
+	SpriteInfo* bombExplosionSpriteInfo = new SpriteInfo(32,32,0,explosionGfx,-1,-1,6,OBJ_SIZE_32X32,350,0,0,true,true,false,bombExplosionAnimation,(void*)bomb_explosion_image_Sprite);
+	ParticleObject* bombExplosionParticle = new ParticleObject(new string("particle"),0,0,32,32,0,0,0,0,58,false,bombExplosionSpriteInfo);
+
+	AnimationInfo* shellExplosionAnimation = new AnimationInfo(0,29,2,true);
+	SpriteInfo* shellExplosionSpriteInfo = new SpriteInfo(32,32,0,explosionGfx,-1,-1,6,OBJ_SIZE_32X32,450,0,0,true,true,false,shellExplosionAnimation,(void*)bomb_explosion_image_Sprite);
+	ParticleObject* shellExplosionParticle = new ParticleObject(new string("particle"),0,0,32,32,0,0,0,0,58,false,shellExplosionSpriteInfo);
+
+	AnimationInfo* rocketExplosionAnimation = new AnimationInfo(0,29,2,true);
+	SpriteInfo* rocketExplosionSpriteInfo = new SpriteInfo(32,32,0,explosionGfx,-1,-1,6,OBJ_SIZE_32X32,600,0,0,true,true,false,rocketExplosionAnimation,(void*)bomb_explosion_image_Sprite);
+	ParticleObject* rocketExplosionParticle = new ParticleObject(new string("particle"),0,0,32,32,0,0,0,0,58,false,rocketExplosionSpriteInfo);
+
+	SpriteInfo* aaSmokeSpriteInfo = new SpriteInfo(32,32,0,aaSmokeGfx,-1,-1,5,OBJ_SIZE_32X32,480,1,0,true,true,true);
+	ParticleObject* aaSmokeParticle = new ParticleObject(new string("particle"),0,0,32,32,0,0,0,0,300,false,aaSmokeSpriteInfo);
+
 	//Now put all objects in an array to be looked up
-	effectsReferenceObjects[0] = bombExplosionParticle;
-	effectsReferenceObjects[1] = muzzleParticle;
-	effectsReferenceObjects[2] = smokeParticle;
+	particleReferenceObjects[0] = buildPart1Particle;
+	particleReferenceObjects[1] = buildPart2Particle;
+	particleReferenceObjects[2] = buildPart3Particle;
+	particleReferenceObjects[3] = treePartParticle;
+	particleReferenceObjects[4] = planePartParticle;
+	particleReferenceObjects[5] = smokeParticle;
+	particleReferenceObjects[6] = bombExplosionParticle;
+	particleReferenceObjects[7] = shellExplosionParticle;
+	particleReferenceObjects[8] = rocketExplosionParticle;
+	particleReferenceObjects[9] = aaSmokeParticle;
 }
 
 void InGame::initLevel(){
@@ -373,80 +538,178 @@ void InGame::initLevel(){
 		heightMap->push_back(SHEIGHT-70);
 		heightMap->push_back(SHEIGHT-70);
 		heightMap->push_back(SHEIGHT-70);
-		heightMap->push_back(SHEIGHT-70);
-		heightMap->push_back(SHEIGHT-70);
-		heightMap->push_back(SHEIGHT-70);
-		heightMap->push_back(SHEIGHT-70);
-		heightMap->push_back(SHEIGHT-70);
-		heightMap->push_back(SHEIGHT-70);
-		heightMap->push_back(SHEIGHT-70);
-		heightMap->push_back(SHEIGHT-70);
-		heightMap->push_back(SHEIGHT-70);
-		heightMap->push_back(SHEIGHT-70);
-		heightMap->push_back(SHEIGHT-70);
-		heightMap->push_back(SHEIGHT-70);
-		heightMap->push_back(SHEIGHT-70);
-		heightMap->push_back(SHEIGHT-70);
-		heightMap->push_back(SHEIGHT-70);
-		heightMap->push_back(SHEIGHT-70);
-		heightMap->push_back(SHEIGHT-70);
-		heightMap->push_back(SHEIGHT-70);
-		heightMap->push_back(SHEIGHT-70);
-		heightMap->push_back(SHEIGHT-70);
-		heightMap->push_back(SHEIGHT-70);
-		heightMap->push_back(SHEIGHT-70);
-		heightMap->push_back(SHEIGHT-70);
-		heightMap->push_back(SHEIGHT-70);
-		heightMap->push_back(SHEIGHT-70);
-		heightMap->push_back(SHEIGHT-70);
-		heightMap->push_back(SHEIGHT-70);
-		heightMap->push_back(SHEIGHT-70);
-		heightMap->push_back(SHEIGHT-70);
-
-		heightMap->push_back(SHEIGHT-82);
-		heightMap->push_back(SHEIGHT-88);
-		heightMap->push_back(SHEIGHT-98);
-
-		heightMap->push_back(SHEIGHT-108);
+		heightMap->push_back(SHEIGHT-90);
 		heightMap->push_back(SHEIGHT-110);
-		heightMap->push_back(SHEIGHT-110);
-
-
-		heightMap->push_back(SHEIGHT-112);
-		heightMap->push_back(SHEIGHT-122);
-		heightMap->push_back(SHEIGHT-132);
-		heightMap->push_back(SHEIGHT-144);
-		heightMap->push_back(SHEIGHT-134);
-
-		heightMap->push_back(SHEIGHT-124);
-		heightMap->push_back(SHEIGHT-114);
-		heightMap->push_back(SHEIGHT-104);
-		heightMap->push_back(SHEIGHT-94);
-		//Tree
-		heightMap->push_back(SHEIGHT-92);
-		//Tree
-		heightMap->push_back(SHEIGHT-92);
-		//Tree
-		heightMap->push_back(SHEIGHT-98);
-		heightMap->push_back(SHEIGHT-86);
-		//Tree
-		heightMap->push_back(SHEIGHT-100);
-		//Tree
-		heightMap->push_back(SHEIGHT-104);
-		heightMap->push_back(SHEIGHT-106);
-		heightMap->push_back(SHEIGHT-110);
-		heightMap->push_back(SHEIGHT-110);
-		heightMap->push_back(SHEIGHT-110);
-		heightMap->push_back(SHEIGHT-110);
-		heightMap->push_back(SHEIGHT-110);
-		heightMap->push_back(SHEIGHT-110);
-		heightMap->push_back(SHEIGHT-110);
-		heightMap->push_back(SHEIGHT-110);
-		heightMap->push_back(SHEIGHT-110);
-		heightMap->push_back(SHEIGHT-124);
-		heightMap->push_back(SHEIGHT-126);
-		heightMap->push_back(SHEIGHT-136);
-		heightMap->push_back(SHEIGHT-146);
+		heightMap->push_back(SHEIGHT-130);
+		heightMap->push_back(SHEIGHT-150);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+				heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+				heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
+		heightMap->push_back(SHEIGHT-156);
 		heightMap->push_back(SHEIGHT-156);
 		heightMap->push_back(SHEIGHT-156);
 		heightMap->push_back(SHEIGHT-156);
@@ -466,14 +729,25 @@ void InGame::initLevel(){
 
 		//Test landscape algorithm
 		addLandscapeObject(810,0);
-		addLandscapeObject(830,0);
-		addLandscapeObject(850,0);
-		addLandscapeObject(900,1);
+		addLandscapeObject(880,1);
 		addLandscapeObject(950,2);
-		addLandscapeObject(1000,3);
-		addLandscapeObject(1050,4);
-		addLandscapeObject(1100,5);
-
+		addLandscapeObject(1020,3);
+		addLandscapeObject(1090,4);
+		addLandscapeObject(1160,5);
+		addLandscapeObject(1230,6);
+		addLandscapeObject(1300,7);
+		addLandscapeObject(1370,8);
+		addLandscapeObject(1440,9);
+		addLandscapeObject(1510,10);//build51o1
+		addLandscapeObject(1542,11);
+		addLandscapeObject(1606,12);
+		addLandscapeObject(1676,13);//build61o1
+		addLandscapeObject(1708,14);
+		addLandscapeObject(1772,15);
+		addLandscapeObject(1844,16);
+		addLandscapeObject(1914,17);
+		addLandscapeObject(1984,18);//church1o1
+		addLandscapeObject(2048,19);
 	#endif
 }
 
@@ -502,7 +776,7 @@ void InGame::initPlayer(){
 	u16 plane_gfx = PA_CreateGfx(0, (void*)spitfire_image_Sprite, OBJ_SIZE_32X32, 1);
 
 	SpriteInfo* so = new SpriteInfo(32,32,0,plane_gfx,0,0,0,OBJ_SIZE_32X32,256,0,0,true,true,false);
-	player = new PlayerObject(runwayStart<<8,(runwayHeight+12)<<8,16,8,0,0,0,9,60,so);
+	player = new PlayerObject(runwayStart<<8,(runwayHeight+12)<<8,16,8,0,0,0,9,60,so,new ParticleObject(*particleReferenceObjects[4]));
 
 	//Load plane sprite
 	PA_CreateSpriteFromGfx(0, so->getSpriteIndex(),so->getGfxRef(),OBJ_SIZE_32X32, 1, so->getPaletteIndex(), (player->getX()>>8), (player->getY()>>8));
@@ -620,15 +894,18 @@ void InGame::addPlayerBullet(){
 	s32 startx = cx+(componentx*(player->getObjectWidth()/2));
 	s32 starty = cy+(componenty*(player->getObjectWidth()/2));
 	
-	u16 width =1;
-	u16 height =6;
 	s32 heading = player->getHeading()>>8;
 
 	s16 vx = (PA_Cos(heading)*(player->speed+1000)>>8);
 	s16 vy = (-PA_Sin(heading)*(player->speed+1000)>>8)+PA_RandMax(64);
 	
-	SpriteInfo* so = new SpriteInfo(-1,-1,0,-1,-1,-1,5,0,0,256,0,2,false,false,false);
-	ProjectileObject* bullet = new ProjectileObject(new string("player_bullet"),startx,starty,width,height,heading,vx,vy,so,-1,1,10,true);
+	ProjectileObject* bullet = new ProjectileObject(*projectileReferenceObjects[0]);
+	bullet->setX(startx);
+	bullet->setY(starty);
+	bullet->setVx(vx);
+	bullet->setVy(vy);
+	bullet->setHeading(heading);
+
 	projectiles.push_back(bullet);
 }
 
@@ -653,12 +930,15 @@ void InGame::addPlayerBomb(){
 	s32 startx = cx+(PA_Cos(normalAngle) * (player->getObjectHeight()/2));
 	s32 starty = cy+(-PA_Sin(normalAngle) * (player->getObjectHeight()/2));
 	
-	u16 width =2;
-	u16 height =6;
 	s32 heading = player->getHeading();
 
-	SpriteInfo* so = new SpriteInfo(-1,-1,0,-1,-1,-1,5,0,0,256,0,2,false,true,false);
-	ProjectileObject* bomb = new ProjectileObject(new string("player_bomb"),startx,starty,width,height,heading,player->vx,player->vy,so,-1,5,1000,true);
+	ProjectileObject* bomb = new ProjectileObject(*projectileReferenceObjects[1]);
+	bomb->setX(startx-((bomb->getSpriteInfo()->getSpriteWidth()/2)<<8));
+	bomb->setY(starty-((bomb->getSpriteInfo()->getSpriteHeight()/2)<<8));
+	bomb->setVx(player->vx);
+	bomb->setVy(player->vy);
+	bomb->setHeading(heading);
+
 	projectiles.push_back(bomb);
 }
 
@@ -678,7 +958,22 @@ void InGame::doUpdates(){
 
 	//Update particles
 	updateParticles();
+
+	//Update AI
+	updateAI();
 }
+void InGame::updateAI(){
+	vector<AIObject*>::iterator it;
+	it = AIObjects.begin();
+
+	while( it != AIObjects.end()) {
+		AIObject* ai = *it;
+		//Do something here
+
+		it++;
+	}
+}
+
 void InGame::updatePlayer(){
 	//Update engine sound
 	PA_SetSoundChannelVol(0,(player->speed<<8)/1109);
@@ -751,8 +1046,8 @@ void InGame::updatePlayer(){
 	
 	//Possibly add some smoke
 	player->setTimeSinceLastSmoked(player->getTimeSinceLastSmoked()+1);
-	if(player->getTimeSinceLastSmoked()>player->getSmokingInterval()){
-		ParticleObject* po = new ParticleObject(*(effectsReferenceObjects[2]));
+	if(player->getTimeSinceLastSmoked()>player->getSmokingInterval()&&player->getHealth()<50){
+		ParticleObject* po = new ParticleObject(*(particleReferenceObjects[1]));
 		SpriteInfo* si = po->getSpriteInfo();
 		po->vy=15+PA_RandMax(15); //WTF HEAVY SMOKE?
 		po->vx=player->vx/7;
@@ -787,7 +1082,7 @@ void InGame::updatePlayer(){
 	player->setY(player->getY()+player->vy);
 	player->speed=speed;
 
-	u16 contactingRunway = ((player->getX()>>8)>runwayStart&&(player->getX()>>8)<runwayEnd)&&planeLandscapeCollision();
+	u16 contactingRunway = ((player->getX()>>8)>runwayStart&&(player->getX()>>8)<runwayEnd)&&playerLandscapeCollision();
 
 	//If plane is currently in the air and is contacting the runway
 	if((player->takingOff==0&&contactingRunway)){
@@ -821,7 +1116,7 @@ void InGame::updatePlayer(){
 }
 
 void InGame::playerCollisions(){
-	if(planeLandscapeCollision()||playerLandscapeObjectCollison()){
+	if(playerLandscapeCollision()||playerLandscapeObjectCollison()){
 		planeCrash();
 	}
 }
@@ -830,33 +1125,41 @@ void InGame::addParticlesFromObject(DestructableObject* destructable){
 	SpriteInfo* si = destructable->getSpriteInfo();
 
 	//get center of destructable
-	s16 cx = ((destructable->getX()>>8)+(si->getSpriteWidth()/2));
-	s16 cy = ((destructable->getY()>>8)+(si->getSpriteHeight()/2));
+	s32 cx = destructable->getX()+((si->getSpriteWidth()/2)<<8);
+	s32 cy = destructable->getY()+((si->getSpriteHeight()/2)<<8);
 
 	u16 halfWidth = destructable->getObjectWidth()/2;
 	u16 halfHeight = destructable->getObjectHeight()/2;
-	
-	u16 ttl = 240;
-	bool heavy =true;
-	
+
 	for(u16 i=0;i<destructable->getParticleCount();i++){
-		string* name = new string("landscape_particle");
+		ParticleObject* po = new ParticleObject(*(destructable->getParticleSpriteInstance()));
 
-		SpriteInfo* particleSi = new SpriteInfo(*(destructable->getParticleSpriteInstance()));
-		u16 width = particleSi->getSpriteWidth();
-		u16 height = particleSi->getSpriteHeight();
-
-		s32 startx = cx + (PA_RandMax(destructable->getObjectWidth()))-halfWidth;
-		s32 starty = cy + (PA_RandMax(destructable->getObjectHeight()))-halfHeight;
+		s32 startx = cx + (PA_RandMax(destructable->getObjectWidth()<<8))-(halfWidth<<8);
+		s32 starty = cy + (PA_RandMax(destructable->getObjectHeight()<<8))-(halfHeight<<8);
 
 		u16 currentAngle = PA_RandMax(511<<8);
-		s16 rotspeed = PA_RandMinMax(1400,2800);
-		if(PA_RandMax(1)){rotspeed = 0-rotspeed;}
+		s16 rotSpeed = PA_RandMinMax(1400,2800);
+		if(PA_RandMax(1)){rotSpeed = 0-rotSpeed;}
 	
-		s16 particlevx = PA_RandMax(256)-256;
-		s16 particlevy = PA_RandMax(256)-256;
+		s16 particleVx = (destructable->vx==0)?PA_RandMax(256)-256:destructable->vx;
+		s16 particleVy = (destructable->vy==0)?PA_RandMax(256)-256:destructable->vy;
+		
+		po->setX(startx);
+		po->setY(starty);
+		po->setHeading(currentAngle);
+		po->getSpriteInfo()->setAngle(currentAngle);
+		po->setRotSpeed(rotSpeed);
+		po->setVx(particleVx);
+		po->setVy(particleVy);
 
-		particles.push_back(new ParticleObject(name,startx<<8,starty<<8,width,height,currentAngle,rotspeed,particlevx,particlevy,ttl,heavy,particleSi));
+		//Particle objects can have multiple frames (plane and tree particles) so set random frame
+		SpriteInfo* si = po->getSpriteInfo();
+		AnimationInfo* ai = si->getAnimationInfo();
+		if(ai!=NULL){
+			u16 randIndex = PA_RandMax(ai->getFrameCount()-1);
+			ai->setCurrentFrame(randIndex);
+		}
+		particles.push_back(po);
 	}
 }
 
@@ -871,7 +1174,7 @@ bool InGame::playerLandscapeObjectCollison(){
 	
 	s32 playerx = 0;
 	s32 playery = 0;
-	getBottomEndPlane(player,playerx,playery,1);
+	getBottomEndOfObject(player,playerx,playery,1);
 
 	while( it != landscapeObjects.end()) {
 		DestructableObject* destructable = (*it);
@@ -884,12 +1187,38 @@ bool InGame::playerLandscapeObjectCollison(){
 
 		if(pointInRectangleCollision(playerx,playery,destx,desty,destwidth,destheight)){
 			destructable->destructObject();
+			releaseObjectResources(destructable);
 			addParticlesFromObject(destructable);
 			return true;
 		}
 		it++;
 	}
 	return false;
+}
+
+void InGame::releaseObjectResources(GameObject* go){
+	SpriteInfo* si = go->getSpriteInfo();
+	
+	s16 spriteIndex = si->getSpriteIndex();
+	s16 rotIndex = si->getRotIndex();
+
+	if(spriteIndex!=-1){
+		PA_SetSpriteY(0,spriteIndex,193);
+		si->setSpriteIndex(-1);
+		spritePool.push_back(spriteIndex);
+		if(si->getUsesAlpha()){
+			PA_SetSpriteMode(0,spriteIndex,0);
+		}
+
+		if(rotIndex!=-1&&si->getUsesRotZoom()){
+			PA_SetSpriteRotDisable(0,spriteIndex);
+			si->setRotIndex(-1);
+			rotPool.push_back(rotIndex);
+		}	
+	}
+	if(si->usesAnimation()){
+		PA_SetSpriteAnim(0, spriteIndex, 0);
+	}
 }
 
 bool InGame::pointInRectangleCollision(s16 pointx,s16 pointy,s16 rectanglex,s16 rectangley,u16 width,u16 height){
@@ -942,12 +1271,17 @@ void InGame::updateViewport(){
 bool InGame::projectileLandscapeObjectCollison(ProjectileObject* projectile){
 	vector<DestructableObject*>::iterator it;
 	it = landscapeObjects.begin();
+	
+	//Needs to be modified to end middle of projectile
+	s32 cx = (projectile->getX()>>8);
+	s32 cy = (projectile->getY()>>8);
 
-	s16 cx = (projectile->getX()>>8);
-	s16 cy = (projectile->getY()>>8);
+	//If projectile uses sprite current position will jst be top left of it..we need to find front middle
+	if(projectile->getSpriteInfo()->getUsesSprite()){
+		getMiddleEndOfObject((GameObject*)projectile,cx,cy,1);
+	}
 
 	bool collision = false;
-	
 	while( it != landscapeObjects.end()) {
 		DestructableObject* destructable = (*it);
 		if(destructable->getDestroyed()){it++;continue;}
@@ -963,6 +1297,7 @@ bool InGame::projectileLandscapeObjectCollison(ProjectileObject* projectile){
 			projectile->explode();
 			if(destructable->getHealth()<=0){
 				destructable->destructObject();
+				releaseObjectResources(destructable);
 				addParticlesFromObject(destructable);
 			}
 			
@@ -985,9 +1320,16 @@ void InGame::updateProjectiles(){
 		
 		projectile->setX(projectile->getX()+projectile->vx);
 		projectile->setY(projectile->getY()+projectile->vy);
+		
+		//Need to modify this to find bottom middle of projectile
+		s32 px = (projectile->getX()>>8);
+		s32 py = (projectile->getY()>>8);
+		
+		//If projectile uses sprite current position will jst be top left of it..we need to find front middle
+		if(projectile->getSpriteInfo()->getUsesSprite()){
+			getMiddleEndOfObject((GameObject*)projectile,px,py,1);
+		}
 
-		s16 px = (projectile->getX()>>8);
-		s16 py = (projectile->getY()>>8);
 		s16 vx = projectile->vx;
 		s16 vy = projectile->vy;
 		s16 ttl = projectile->getTtl();
@@ -1017,18 +1359,53 @@ void InGame::updateProjectiles(){
 		//Now check collision with actual game objects
 		projectileCollision(projectile);
 		
-		//If somehow it exploded erase it!
+		//Check for out of level bounds
+		if(px<0||px>currentLevel->levelWidth||py<SHEIGHT-currentLevel->levelHeight){
+			it=projectiles.erase(it);
+			continue;
+		}
+
+		//If somehow it exploded erase it and add explosion animation if it has one!
 		if(projectile->isExploded()){
-			if(projectile->getName()->compare("player_bomb") == 0){
+			if(projectile->getName()->compare("bomb") == 0){
 				PA_PlaySound(PA_GetFreeSoundChannel(),player_bombhit_sfx,(u32)player_bombhit_sfx_size,127,44100);
 			}
+			if(projectile->hasExplosionAnimation())addExplosionAnimationFromProjectile(projectile);
 			it=projectiles.erase(it);
+			continue;
 		}
-		else{
-			it++;
-		}
+		it++;
 	}
 	
+}
+void InGame::addExplosionAnimationFromProjectile(ProjectileObject* projectile){
+	if(landscapeCollision(projectile->getX()>>8,projectile->getY()>>8)){
+		projectile->setY((getHeightAtPoint(projectile->getX()>>8)<<8)); //Push projectile out of the ground
+	}
+	ParticleObject* particle = new ParticleObject(*projectile->getExplosionAnimation());
+	s32 startx = projectile->getX()-((particle->getSpriteInfo()->getSpriteWidth()/2)<<8);
+	s32 starty = projectile->getY()-((particle->getSpriteInfo()->getSpriteHeight()/2)<<8);
+	
+	//If projectile uses sprite current position will jst be top left of it..we need to find front middle
+	if(projectile->getSpriteInfo()->getUsesSprite()){
+		getMiddleEndOfObject((GameObject*)projectile,startx,starty,1);
+		startx<<=8;
+		starty<<=8;
+		startx-=((particle->getSpriteInfo()->getSpriteWidth()/2)<<8);
+		starty-=((particle->getSpriteInfo()->getSpriteHeight()/2)<<8);
+	}
+	
+	particle->setX(startx);
+	particle->setY(starty);
+	particles.push_back(particle);
+
+	//If particle had sprite ref add it back to the pool at set it to invisible
+	s16 spriteRef = projectile->getSpriteInfo()->getSpriteIndex();
+	if(spriteRef!=-1){
+		spritePool.push_back(spriteRef);
+		PA_SetSpriteY(0,spriteRef,193);
+		projectile->getSpriteInfo()->setSpriteIndex(-1);
+	}
 }
 
 u16 InGame::getSpeedFromVelocity(s16 vx,s16 vy){	
@@ -1051,12 +1428,14 @@ void InGame::updateParticles(){
 		//Update ttl and current position and current angle
 		po->ttl--;
 		SpriteInfo* si = po->getSpriteInfo();
-		si->setAngle(wrapAngleShifted(si->getAngle()+po->rotSpeed));
+		si->setAngle(wrapBigAngle(si->getAngle()+po->rotSpeed));
 		po->setX(po->getX()+po->vx);
 		po->setY(po->getY()+po->vy);
 		if((po->getX()>>8)>0&&(po->getX()>>8)<currentLevel->levelWidth){
-			if(!particleLandscapeCollision(po)&&po->heavy){
-				po->vy+=GRAVITY;
+			if(po->isHeavy()){
+				if(!particleLandscapeCollision(po)){
+					po->vy+=GRAVITY;
+				}
 			}
 		}
 		if(po->ttl==0){
@@ -1167,7 +1546,7 @@ bool InGame::particleLandscapeCollision(ParticleObject* po){
 		po->setY((po->getY()-highestOverlap)+256);
 
 		//Figure out reflection angle and apply it to current velocity
-		u16 reflectAngle = reflectTest= reflectOverNormal(headingAngle,getNormalAtPoint(collisionx>>8));
+		u16 reflectAngle = reflectOverNormal(headingAngle,getNormalAtPoint(collisionx>>8));
 		u16 currentSpeed=getSpeedFromVelocity(po->vx,po->vy);
 		//if(currentSpeed<=1000){currentSpeed=0;}
 		po->vx=((currentSpeed*PA_Cos(reflectAngle))>>8);
@@ -1181,11 +1560,11 @@ bool InGame::particleLandscapeCollision(ParticleObject* po){
 	return collision;
 }
 
-inline u16 InGame::wrapAngle(s16 angle){
+u16 InGame::wrapAngle(s16 angle){
 	return (angle>511)? angle&511:(angle<0)? 512+angle:angle;
 }
 
-inline u16 InGame::wrapAngleShifted(s32 angle){
+u32 InGame::wrapBigAngle(s32 angle){
 	return (angle>(511<<8))? angle&((512<<8)-1):(angle<0)? (512<<8)+angle:angle;
 }
 
@@ -1216,6 +1595,9 @@ void InGame::doDrawing(void){
 
 	//Draw particles
 	drawParticles();
+
+	//Draw AI
+	drawAI();
 }
 /**
 This does not use drawObject function since it has to do quirky
@@ -1268,7 +1650,7 @@ void InGame::drawRunway(){
 
 	while( it != runwayObjects.end()){
 		GameObject* runwayPiece = (*it);
-		drawObject(runwayPiece,2);
+		drawObject(runwayPiece);
 		it++;
 	}
 
@@ -1280,7 +1662,7 @@ void InGame::drawProjectiles(){
 
 	while( it != projectiles.end()) {
 		ProjectileObject* projectile = (*it);
-		drawObject(projectile,1);
+		drawObject(projectile);
 		it++;
 	}
 }
@@ -1292,7 +1674,7 @@ void InGame::drawParticles(){
 
 	while( it != particles.end()) {
 		ParticleObject* po = (*it);
-		drawObject(po,1);
+		drawObject(po);
 		it++;
 	}
 }
@@ -1303,40 +1685,43 @@ void InGame::drawLandscapeObjects(){
 
 	while( it != landscapeObjects.end()) {
 		DestructableObject* lo = (*it);
-		drawObject(lo,2);
+		drawObject(lo);
 		it++;
 	}
 }
 
-void InGame::drawObject(GameObject* go,u16 priority){
+void InGame::drawAI(){
+	vector<AIObject*>::iterator it;
+	it = AIObjects.begin();
+
+	while( it != AIObjects.end()) {
+		AIObject* ai = (*it);
+		//Need logic to draw all hardpoints as well
+
+
+		it++;
+	}
+}
+
+
+void InGame::drawObject(GameObject* go){
 		//Do dynamic allocation/deallocation of sprite indexes and rot indexes
 		s16 finalx = (go->getX()>>8)-getViewPortX();
 		s16 finaly = (go->getY()>>8)-getViewPortY();
 
 		SpriteInfo* si = go->getSpriteInfo();
+		//SpriteInfo handles all the particulars like is this object animated....we jst call updateSpriteFrame
+		si->updateSpriteFrame();
 
 		s16 spriteIndex = si->getSpriteIndex();
 		s16 rotIndex = si->getRotIndex();
 		u16 width = si->getSpriteWidth();
 		u16 height = si->getSpriteHeight();
-		priority = si->getPriority();
+		u16 priority = si->getPriority();
 
 		//Check if particle is offscreen...if so make sure it doesnt have a sprite index
 		if(finalx+width<0||finalx>SWIDTH||finaly>SHEIGHT||finaly+height<0){
-			//If piece has a spite index put it back into sprite pool
-			if(spriteIndex!=-1){
-				si->setSpriteIndex(-1);
-				spritePool.push_back(spriteIndex);
-				PA_SetSpriteY(0, spriteIndex, 193);	//Hide sprite until its used again
-				if(si->getUsesAlpha()){
-					PA_SetSpriteMode(0,spriteIndex,0);
-				}
-			}
-			if(si->getRotIndex()!=-1&&si->getUsesRot()){
-				si->setRotIndex(-1);
-				rotPool.push_back(rotIndex);
-				PA_SetSpriteRotDisable(spriteIndex,spriteIndex);
-			}
+			releaseObjectResources(go);
 		}
 		//If its on screen test if it has a sprite index yet
 		else{
@@ -1345,7 +1730,14 @@ void InGame::drawObject(GameObject* go,u16 priority){
 				spriteIndex = spritePool.back();
 				spritePool.pop_back();
 				si->setSpriteIndex(spriteIndex);
-				PA_CreateSpriteFromGfx(0, spriteIndex,si->getGfxRef(),si->getObjShape(),si->getObjSize(), 1,si->getPaletteIndex(),finalx,finaly);
+				//If we are using animations create new physical sprite object rather then reference
+				if(si->usesAnimation()){
+					PA_CreateSprite(0, spriteIndex,si->getData(),si->getObjShape(),si->getObjSize(), 1,si->getPaletteIndex(),finalx,finaly);
+				}
+				else{
+					PA_CreateSpriteFromGfx(0, spriteIndex,si->getGfxRef(),si->getObjShape(),si->getObjSize(), 1,si->getPaletteIndex(),finalx,finaly);
+				}
+				
 				if(si->getUsesAlpha()){
 					PA_SetSpriteMode(0,spriteIndex,1);
 				}
@@ -1377,14 +1769,14 @@ void InGame::drawObject(GameObject* go,u16 priority){
 				PA_Draw8bitLineEx (0,beginx,beginy,finalx,finaly,si->getPaletteIndex(),go->getObjectWidth());	
 			
 			}
-			if(rotIndex==-1&&si->getUsesRot()){	//Make sure it has a rot index and enable rotation for that index
+			if(rotIndex==-1&&si->getUsesRotZoom()){	//Make sure it has a rot index and enable rotation for that index
 				rotIndex = rotPool.back();
 				rotPool.pop_back();
 				si->setRotIndex(rotIndex);
 				PA_SetSpriteRotEnable(0, spriteIndex,rotIndex);
 				PA_SetRotset(0, rotIndex, si->getAngle()>>8,si->getZoom(),si->getZoom());
 			}
-			else if(si->getUsesRot()){
+			else if(si->getUsesRotZoom()){
 				PA_SetRotset(0, si->getRotIndex(), si->getAngle()>>8,si->getZoom(),si->getZoom());
 			}
 		}
@@ -1468,15 +1860,15 @@ u16 InGame::smaller(u16 a,u16 b){
 	return(a>b)? a:b;
 }
 
-u16 InGame::planeLandscapeCollision(){
+u16 InGame::playerLandscapeCollision(){
 	if(player->onRunway){return 0;}
 
 	s32 tipxFront = 0;
 	s32 tipyFront = 0;
 	s32 tipxBack = 0;
 	s32 tipyBack = 0;
-	getBottomEndPlane(player,tipxFront,tipyFront,1);
-	getBottomEndPlane(player,tipxBack,tipyBack,-1);
+	getBottomEndOfObject(player,tipxFront,tipyFront,1);
+	getBottomEndOfObject(player,tipxBack,tipyBack,-1);
 	
 	//Now collision tests
 	return(landscapeCollision(tipxFront,tipyFront)||landscapeCollision(tipxBack,tipyBack));
@@ -1485,9 +1877,9 @@ u16 InGame::planeLandscapeCollision(){
 /**
 Utility function, bottom front of planes are used for collisions
 **/
-void InGame::getBottomEndPlane(GameObject* go,s32 &x,s32 &y,s16 direction){
-	SpriteInfo* si = player->getSpriteInfo();
-	u16 planeRadius = player->getObjectWidth()/2;
+void InGame::getBottomEndOfObject(GameObject* go,s32 &x,s32 &y,s16 direction){
+	SpriteInfo* si = go->getSpriteInfo();
+	u16 radius = go->getObjectWidth()/2;
 
 	s16 currentHeading = (go->getHeading()>>8);
 	s16 normalAdjust = (currentHeading<128||currentHeading>384)? -128:128;
@@ -1497,8 +1889,8 @@ void InGame::getBottomEndPlane(GameObject* go,s32 &x,s32 &y,s16 direction){
 	if(normalAngle<0)normalAngle+=512;
 	if(normalAngle>511)normalAngle &= 512;
 
-	u16 cx = (player->getX()>>8)+(si->getSpriteWidth()/2);
-	u16 cy = (player->getY()>>8)+(si->getSpriteHeight()/2);
+	u16 cx = (go->getX()>>8)+(si->getSpriteWidth()/2);
+	u16 cy = (go->getY()>>8)+(si->getSpriteHeight()/2);
 
 	s16 bottomx = cx+((PA_Cos(normalAngle) * (go->getObjectHeight()/2))>>8);
 	s16 bottomy = cy+((-PA_Sin(normalAngle) * (go->getObjectHeight()/2))>>8);
@@ -1506,8 +1898,24 @@ void InGame::getBottomEndPlane(GameObject* go,s32 &x,s32 &y,s16 direction){
 	s16 xComponent =PA_Cos(go->getHeading()>>8);
 	s16 yComponent =-PA_Sin(go->getHeading()>>8);
 
-	x = bottomx+(((xComponent*planeRadius)>>8)*direction);
-	y = bottomy+(((yComponent*planeRadius)>>8)*direction);
+	x = bottomx+(((xComponent*radius)>>8)*direction);
+	y = bottomy+(((yComponent*radius)>>8)*direction);
+}
+/**
+Utility function, middle front or back of game objects (currently used for projectile bombs)
+**/
+void InGame::getMiddleEndOfObject(GameObject* go,s32 &x,s32 &y,s16 direction){
+	SpriteInfo* si = go->getSpriteInfo();
+	u16 radius = go->getObjectWidth()/2;
+
+	u16 cx = (go->getX()>>8)+(si->getSpriteWidth()/2);
+	u16 cy = (go->getY()>>8)+(si->getSpriteHeight()/2);
+
+	s16 xComponent =PA_Cos(go->getHeading()>>8);
+	s16 yComponent =-PA_Sin(go->getHeading()>>8);
+
+	x = cx+(((xComponent*radius)>>8)*direction);
+	y = cy+(((yComponent*radius)>>8)*direction);
 }
 
 int InGame::landscapeCollision(s16 x, s16 y){
@@ -1547,11 +1955,11 @@ u16 InGame::reflectOverNormal(u16 angle,u16 normal){
 	return wrapAngle(normal+normalDiff);
 }
 
-inline u16 InGame::flipAngle(s16 angle){
+u16 InGame::flipAngle(s16 angle){
 	return wrapAngle(angle-256);
 }
 
-inline s16 InGame::wrapAngleDistance(u16 angle1,u16 angle2){
+s16 InGame::wrapAngleDistance(u16 angle1,u16 angle2){
 	s16 diff = angle1-angle2;
 	s16 flipped = (diff<0)? -1:1;
 	return (abs(diff)>256)?(256-(abs(diff)-256)*(0-flipped)):diff;
@@ -1569,53 +1977,20 @@ void InGame::planeCrash(){
 	u16 plane_gfx = player->getSpriteInfo()->getGfxRef();
 	delete player;
 	SpriteInfo* so = new SpriteInfo(32,32,0,plane_gfx,0,0,0,OBJ_SIZE_32X32,256,0,2,true,true,false);
-	player = new PlayerObject(runwayStart<<8,(runwayHeight+12)<<8,16,8,0,0,0,9,60,so);
+	player = new PlayerObject(runwayStart<<8,(runwayHeight+12)<<8,16,8,0,0,0,9,60,so,new ParticleObject(*particleReferenceObjects[4]));
 	scrollBackToRunway();
 }
 void InGame::planeCrashParticles(){
-	s16 planevx = player->vx;
-	s16 planevy = player->vy;
+	//Add particles from object 
+	addParticlesFromObject(player);
+
+	//Little hack to make sure that viewport does not jump when tracking last particle
+	ParticleObject* po = particles.back();
+	po->setX(player->getX());
+	po->setY(player->getY());
 	
-	string* name = new string("plane_part");
-
-	u16 width=8;
-	u16 height=8;
-	
-	//Dont assign spriteIndex yet since drawParticles will do that for us
-	s16 spriteIndex = -1;
-
-	u16 palette = 3;
-	u16 gfxref = planePartgfx;
-	u16 ttl = 240;
-	bool heavy = true;
-	u16 particleCount = 8;
-
-	for(u16 i=0;i<particleCount;i++){
-		s32 startx = ((player->getX()>>8)+PA_RandMax(16))<<8;
-		if(i==7){startx=player->getX();}						//Last particle is created at planes current x for tracking reasons
-		s32 starty = ((player->getY()>>8)+(player->getObjectHeight()/2)+PA_RandMax(16))<<8;
-		s16 rotspeed = PA_RandMinMax(1400,2800);
-		if(PA_RandMax(1)){rotspeed = 0-rotspeed;}
-		s16 currentAngle = PA_RandMax(511<<8);
-		s16 particlevx = planevx;
-		s16 particlevy = planevy;
-		s16 rotIndex = -1;	//Rot index also dynamically assigned
-		u16 zoom=512;
-		
-		//Yey new particle zoomed to 8X8 but zoomed to half the size
-		SpriteInfo* so = new SpriteInfo(width,height,currentAngle,gfxref,spriteIndex,rotIndex,palette,OBJ_SIZE_8X8,zoom,0,2,true,true,false);
-		
-		//Last particle is 
-		if(i+1==particleCount){
-			startx =player->getX();
-			starty =player->getY();
-		}
-		particles.push_back(new ParticleObject(name,startx,starty,width,height,currentAngle,rotspeed,particlevx,particlevy,ttl,heavy,so));
-	}
-
-	
-	//Make sure viewport is kept on particles
-	for(u16 i=0;i<ttl-60;i++){
+	//Make sure viewport is kept on last particle
+	for(u16 i=0;i<player->getParticleSpriteInstance()->getTtl()-60;i++){
 		drawParticles();
 		updateParticles();
 		updateProjectiles();
@@ -1641,11 +2016,11 @@ void InGame::scrollBackToRunway(){
 
 	s16 goingDown = viewporty<targetviewporty;
 
-	//Do slow transition back to runway
+	//Do transition back to runway
 	while(viewportx!=targetviewportx||viewporty!=targetviewporty){
-		if(viewportx>targetviewportx)viewportx-=800;
-		if(goingDown)viewporty+=800;
-		if(!goingDown)viewporty-=800;
+		if(viewportx>targetviewportx)viewportx-=1600;
+		if(goingDown)viewporty+=1600;
+		if(!goingDown)viewporty-=1600;
 		if(viewportx<targetviewportx)viewportx=targetviewportx;
 		if(goingDown&&viewporty>targetviewporty)viewporty=targetviewporty;
 		if(!goingDown&&viewporty<targetviewporty)viewporty=targetviewporty;
@@ -1668,18 +2043,20 @@ void InGame::print_debug(void){
 	PA_ClearTextBg(1);
 	PA_OutputText(1,0, 0, "Title is: %s", currentLevel->levelTitle->c_str());
 	PA_OutputText(1,0, 1, "Viewport x:%d y:%d", getViewPortX(),getViewPortY());
-	PA_OutputText(1,0, 2, "Plane x:%d y:%d %d", player->getX()>>8,player->getY()>>8,test);
+	PA_OutputText(1,0, 2, "Plane x:%d y:%d", player->getX()>>8,player->getY()>>8);
 	PA_OutputText(1,0, 3, "Plane vx:%d vy:%d", player->vx,player->vy);
 	PA_OutputText(1,0, 4, "Landscape sprites used:%d", landscapeIndexs.size());
 	PA_OutputText(1,0, 5, "Available sprites:%d", spritePool.size());
 	PA_OutputText(1,0, 6, "Plane taking off:%d", player->takingOff);
 	PA_OutputText(1,0, 7, "Particle count:%d", particles.size());
-	PA_OutputText(1,0, 8,"Rot pool size:%d", rotPool.size());
-	PA_OutputText(1,0, 9,"Bombs: %d Ammo: %d Fuel: %d Health %d",player->totalBombs,player->totalAmmo,player->totalFuel,player->totalHealth);
+	PA_OutputText(1,0, 8, "Projectile count:%d", projectiles.size());
+	PA_OutputText(1,0, 9,"Rot pool size:%d", rotPool.size());
+	PA_OutputText(1,0, 10,"Bombs: %d Ammo: %d Fuel: %d Health %d",player->totalBombs,player->totalAmmo,player->totalFuel,player->getHealth());
+	PA_OutputText(1,0, 14,"Player test :%d", landscapeObjects.at(0)->getSpriteInfo()->usesAnimation());
 
 	if(particles.size()>0){
-		ParticleObject* po = particles.at(0);
+		ParticleObject* dest = particles.at(0);
 		
-		PA_OutputText(1,0, 12,"Particle: %d %d", po->getX()>>8,po->getY()>>8);
+		PA_OutputText(1,0, 15,"Test: %d %d",dest->getX()>>8,dest->getY()>>8);
 	}
 }

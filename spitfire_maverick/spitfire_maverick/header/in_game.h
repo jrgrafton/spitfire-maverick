@@ -38,6 +38,13 @@ class InGame : public State{
 		void run();
 		void reset();
 		NAME getMyName(); //Not implemented yet
+
+		//Static utility functions that can be used outside of class (used in turret for turret rotation)
+		static u16 wrapAngle(s16 angle);
+		static u32 wrapBigAngle(s32 angle);
+		static s16 wrapAngleDistance(u16 angle1,u16 angle2);	//Needed by turret class for rotation
+		static u16 flipAngle(s16 angle);
+
 	protected:
 		void init();
 	private:
@@ -45,7 +52,9 @@ class InGame : public State{
 		void initGraphics();
 		void initSound();
 		void initLanscapeLookup();
-		void initSpecialEffectsLookup();
+		void initParticleLookup();
+		void initProjectileLookup();
+		void initAILookup();
 		void initLevel();
 		void initRunway();
 		void initPlayer();
@@ -57,11 +66,13 @@ class InGame : public State{
 		int landscapeCollision(s16 x,s16 y);
 		bool pointInRectangleCollision(s16 pointx,s16 pointy,s16 rectanglex,s16 rectangley,u16 width,u16 height);
 		bool circleAndSquareCollision(s16 x0,s16 y0,u16 w0,u16 h0,s16 cx,s16 cy,u16 radius);
-		
+		void getBottomEndOfObject(GameObject* go,s32 &frontx,s32 &fronty,s16 direction);
+		void getMiddleEndOfObject(GameObject* go,s32 &frontx,s32 &fronty,s16 direction);
+		void releaseObjectResources(GameObject* go);		//Whenever we delete a gameObject make sure it releases its rot and sprite index
+
 		//Player collisions function
 		void playerCollisions();
-		u16 planeLandscapeCollision();
-		void getBottomEndPlane(GameObject* go,s32 &frontx,s32 &fronty,s16 direction);
+		u16 playerLandscapeCollision();
 		bool playerLandscapeObjectCollison();
 		void planeCrash();
 		void planeCrashParticles();
@@ -74,6 +85,7 @@ class InGame : public State{
 		//Projectile collision routine called from update projectiles
 		bool projectileCollision(ProjectileObject* projectile);
 		bool projectileLandscapeObjectCollison(ProjectileObject* projectile);
+		void addExplosionAnimationFromProjectile(ProjectileObject* projctile);
 
 		//Input driven functions
 		void processInput();
@@ -89,7 +101,8 @@ class InGame : public State{
 		void drawParticles();
 		void drawPlayer();
 		void drawRunway();
-		void drawObject(GameObject* go,u16 priority);
+		void drawAI();
+		void drawObject(GameObject* go);
 		
 		//Utility functions
 		inline u16 taller(u16 a,u16 b);
@@ -98,10 +111,6 @@ class InGame : public State{
 		u16 getHeightAtPoint(u16 x);
 		u16 getNormalAtPoint(u16 x);
 		u16 reflectOverNormal(u16 angle,u16 normal);
-		inline u16 wrapAngle(s16 angle);
-		inline u16 wrapAngleShifted(s32 angle);
-		inline u16 flipAngle(s16 angle);
-		inline s16 wrapAngleDistance(u16 angle1,u16 angle2);
 		inline s16 getViewPortX();
 		inline s16 getViewPortY();
 		
@@ -112,6 +121,7 @@ class InGame : public State{
 		void updateViewport();
 		void updateProjectiles();
 		void updateParticles();
+		void updateAI();
 		
 		//Other functions
 		void print_debug(void);

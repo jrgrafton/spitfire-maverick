@@ -2,8 +2,8 @@
 #include "../header/game_object.h"
 #include "../header/player_object.h"
 						
-PlayerObject::PlayerObject(s32 startx,s32 starty,u16 width,u16 height,s32 heading,s16 vx,s16 vy,u16 fireDelay,u16 bombDelay,SpriteInfo* si):
-GameObject(new string("player_plane"),startx,starty,width,height,heading,vx, vy,si){
+PlayerObject::PlayerObject(s32 startx,s32 starty,u16 width,u16 height,s32 heading,s16 vx,s16 vy,u16 fireDelay,u16 bombDelay,SpriteInfo* si,ParticleObject* particleSpriteInstance):
+DestructableObject(startx,starty,width,height,heading,vx,vy,si,100,5,-1, particleSpriteInstance){
 	this->timeSinceFired=0;
 	this->timeSinceBombed=0;
 	this->speed=0;
@@ -16,7 +16,6 @@ GameObject(new string("player_plane"),startx,starty,width,height,heading,vx, vy,
 	this->totalBombs=4;
 	this->totalAmmo=500;
 	this->totalFuel=5000;
-	this->totalHealth=100;
 	this->smokingInterval=6;
 	this->timeSinceLastSmoked=0;
 }
@@ -32,7 +31,7 @@ void PlayerObject::restock(){
 	this->totalBombs=4;
 	this->totalAmmo=500;
 	this->totalFuel=18000;
-	this->totalHealth=100;
+	this->setHealth(100);
 }
 PlayerObject::~PlayerObject(){
 }

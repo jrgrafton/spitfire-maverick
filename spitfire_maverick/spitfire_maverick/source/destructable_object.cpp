@@ -2,7 +2,7 @@
 #include "../header/game_object.h"
 #include "../header/destructable_object.h"
 
-DestructableObject::DestructableObject(s32 startx,s32 starty,u16 width,u16 height,s32 heading,s16 vx, s16 vy,SpriteInfo* si,s16 health,s16 particleCount,s16 destroyedGfxRef,SpriteInfo* particleSpriteInstance):
+DestructableObject::DestructableObject(s32 startx,s32 starty,u16 width,u16 height,s32 heading,s16 vx, s16 vy,SpriteInfo* si,s16 health,s16 particleCount,s16 destroyedGfxRef,ParticleObject* particleSpriteInstance):
 GameObject(new string("landscape_object"),startx,starty,width,height,heading,vx, vy,si){
 	this->health=health;
 	this->particleCount=particleCount;
@@ -16,7 +16,7 @@ DestructableObject::DestructableObject(const DestructableObject &object):GameObj
 	this->health=object.health;
 	this->particleCount=object.particleCount;
 	this->destroyedGfxRef=object.destroyedGfxRef;
-	this->particleSpriteInstance=new SpriteInfo(*object.particleSpriteInstance);
+	this->particleSpriteInstance=new ParticleObject(*object.particleSpriteInstance);
 	this->objectDestroyed=false;
 }
 DestructableObject::~DestructableObject(){
@@ -25,8 +25,6 @@ DestructableObject::~DestructableObject(){
 
 void DestructableObject::destructObject(){
 	this->getSpriteInfo()->setGfxRef(destroyedGfxRef);
-	PA_SetSpriteY(0,this->getSpriteInfo()->getSpriteIndex(),193);
-	this->getSpriteInfo()->setSpriteIndex(-1);
 	this->objectDestroyed=true;
 }
 
@@ -39,7 +37,7 @@ void DestructableObject::setHealth(s16 health){
 u16 DestructableObject::getParticleCount(){
 	return particleCount;
 }
-SpriteInfo* DestructableObject::getParticleSpriteInstance(){
+ParticleObject* DestructableObject::getParticleSpriteInstance(){
 	return particleSpriteInstance;
 }
 bool DestructableObject::getDestroyed(){
