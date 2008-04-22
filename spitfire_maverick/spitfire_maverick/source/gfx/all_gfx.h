@@ -126,6 +126,11 @@ extern const unsigned short background_image_Map[768] __attribute__ ((aligned (4
 extern const unsigned char background_image_Tiles[49152] __attribute__ ((aligned (4))) ;  // Pal : background_image_Pal
 extern PAGfx_struct background_image; // background pointer
 
+extern const int menu_background_image_Info[3]; // BgMode, Width, Height
+extern const unsigned short menu_background_image_Map[768] __attribute__ ((aligned (4))) ;  // Pal : menu_background_image_Pal
+extern const unsigned char menu_background_image_Tiles[49152] __attribute__ ((aligned (4))) ;  // Pal : menu_background_image_Pal
+extern PAGfx_struct menu_background_image; // background pointer
+
 // Palette files :
 extern const unsigned short spitfire_image_Pal[250] __attribute__ ((aligned (4))) ; 
 extern const unsigned short background_image_Pal[66] __attribute__ ((aligned (4))) ;
@@ -136,6 +141,8 @@ extern const unsigned short landscape_collestion2_Pal[212] __attribute__ ((align
 extern const unsigned short trees_particles_bomb_Pal[219] __attribute__ ((aligned (4))) ;
 extern const unsigned short bomb_explosion_Pal[182] __attribute__ ((aligned (4))) ;
 extern const unsigned short ai_Pal[196] __attribute__ ((aligned (4))) ;
+extern const unsigned short button_Pal[83] __attribute__ ((aligned (4))) ;
+extern const unsigned short menu_background_image_Pal[256] __attribute__ ((aligned (4)));
 
 #endif
 

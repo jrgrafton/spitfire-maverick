@@ -2,6 +2,7 @@
 #include "../header/main.h"
 #include "../header/state.h"
 #include "../header/splash.h"
+#include "../header/menu.h"
 #include "splash_top.h" // gif to include
 #include "splash_bottom.h" // gif to include
 
@@ -52,7 +53,7 @@ void Splash::run(){
 	
 	//Switch to main game state 
 	delete mainState;
-	//mainState = new Menu();
+	mainState = new Menu();
 }
 /**
 **Splash init function

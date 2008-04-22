@@ -6,6 +6,7 @@
 #include <fat.h>
 #include <string>
 #include <vector>
+#include <limits>
 
 using namespace::std;
 

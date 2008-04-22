@@ -44,7 +44,7 @@ ProjectileObject* projectileReferenceObjects[5];
 vector<ParticleObject*> particles;
 ParticleObject* particleReferenceObjects[10];
 
-//Landscape objects and lookup
+//Destructable objects and lookup
 vector<DestructableObject*> landscapeObjects;
 DestructableObject* landscapeReferenceObjects[20];
 
@@ -196,10 +196,17 @@ void InGame::initGraphics(){
 void InGame::initAILookup(){
 	//First lets lookup hardpoint refences
 	u16 aaTurretSpriteGfx =  PA_CreateGfx(0, (void*)nazi1_turret_image_Sprite, OBJ_SIZE_64X32,1);
-	SpriteInfo* aaTurretSprite = new SpriteInfo(64,32,0,aaTurretSpriteGfx,-1,-1,7,OBJ_SIZE_64X32,256,1,4,true,true,false);
+	SpriteInfo* aaTurretSprite = new SpriteInfo(64,32,0,aaTurretSpriteGfx,-1,-1,7,OBJ_SIZE_64X32,400,1,6,true,true,false); //Prio set to 6 to draw it behind landscape
 	ProjectileObject* aaTurrentProjectile = projectileReferenceObjects[4];
-	HardpointObject* aaTurret = new HardpointObject(0,0,64,32,128,aaTurretSprite,0,4,60,3,256,0,256,aaTurrentProjectile);
-
+	HardpointObject* aaTurret = new HardpointObject(0,0,64,32,128<<8,aaTurretSprite,0,4,60,100,256,0,256,aaTurrentProjectile);
+	
+	//Now lets lookup base references
+	u16 aaBaseSpriteGfx =  PA_CreateGfx(0, (void*)nazi1_base_image_Sprite, OBJ_SIZE_32X32,1);
+	u16 aaBaseSpriteDestGfx =  PA_CreateGfx(0, (void*)nazi1_base_dest_image_Sprite, OBJ_SIZE_32X32,1);
+	SpriteInfo* aaBaseSprite = new SpriteInfo(32,32,0,aaBaseSpriteGfx,-1,-1,7,OBJ_SIZE_32X32,400,0,3,true,true,false);
+	AIObject* aaBase = new AIObject(0,0,32,32,0,aaBaseSprite,1000,5,aaBaseSpriteDestGfx,new ParticleObject(*particleReferenceObjects[1]),true,aaTurret,AIObject::STAYINGSTILL,AIObject::NAZI);
+	
+	AIReferenceObjects[0] = aaBase;
 }
 
 void InGame::addLandscapeObject(s32 x,u16 ref){
@@ -211,13 +218,22 @@ void InGame::addLandscapeObject(s32 x,u16 ref){
 	landscapeObjects.push_back(object);
 }
 
+void InGame::addAIObject(s32 x,u16 ref){
+	AIObject* object = new AIObject(*AIReferenceObjects[ref]);
+	SpriteInfo* si = object->getSpriteInfo();
+	s32 y = getHeightAtPoint(x+si->getSpriteWidth()/2);
+	s32 offset = (si->getSpriteHeight()/2)+(object->getObjectHeight()/2);
+	object->setLocation(x<<8,(y-offset)<<8);
+	AIObjects.push_back(object);
+}
+
 void InGame::initProjectileLookup(){
 	SpriteInfo* bulletSpriteInfo = new SpriteInfo(-1,-1,0,-1,-1,-1,5,0,0,256,0,2,false,false,false);
 	ProjectileObject* playerBulletObject = new ProjectileObject(new string("bullet"),0,0,1,6,0,0,0,bulletSpriteInfo,-1,1,10,true);
 
 	u16 bombGfx = PA_CreateGfx(0, (void*)bomb_image_Sprite, OBJ_SIZE_16X8, 1);
 	SpriteInfo* bombSpriteInfo = new SpriteInfo(16,8,0,bombGfx,-1,-1,5,OBJ_SIZE_16X8,540,1,2,true,true,false);
-	ProjectileObject* playerBombObject = new ProjectileObject(new string("bomb"),0,0,16,8,0,0,0,bombSpriteInfo,-1,5,1000,true,new ParticleObject(*particleReferenceObjects[6]));
+	ProjectileObject* playerBombObject = new ProjectileObject(new string("bomb"),0,0,16,8,0,0,0,bombSpriteInfo,-1,16,1000,true,new ParticleObject(*particleReferenceObjects[6]));
 	
 	SpriteInfo* tankShellSpriteInfo = new SpriteInfo(-1,-1,0,-1,-1,-1,5,0,0,256,0,2,false,false,false);
 	ProjectileObject* tankShellObject = new ProjectileObject(new string("shell"),0,0,2,4,0,0,0,tankShellSpriteInfo,-1,1,10,true,new ParticleObject(*particleReferenceObjects[7]));
@@ -728,7 +744,7 @@ void InGame::initLevel(){
 		initRunway();
 
 		//Test landscape algorithm
-		addLandscapeObject(810,0);
+		addLandscapeObject(750,0);
 		addLandscapeObject(880,1);
 		addLandscapeObject(950,2);
 		addLandscapeObject(1020,3);
@@ -748,6 +764,13 @@ void InGame::initLevel(){
 		addLandscapeObject(1914,17);
 		addLandscapeObject(1984,18);//church1o1
 		addLandscapeObject(2048,19);
+
+		////Test AI algorithm
+		addAIObject(680,0);
+		addAIObject(640,0);
+		addAIObject(600,0);
+		addAIObject(560,0);
+		addAIObject(520,0);
 	#endif
 }
 
@@ -796,7 +819,7 @@ void InGame::initSound(){
 	player_gun_sfx_size[2]=(s32)fiftycal3_sfx_size;
 	player_gun_sfx_size[3]=(s32)fiftycal4_sfx_size;
 
-	PA_PlaySoundEx2 (0,plane_engine_sfx,(s32)plane_engine_sfx_size,(player->getSpeed()<<8)/1109,44100,0,true,0);
+	PA_PlaySoundEx2(0,plane_engine_sfx,(s32)plane_engine_sfx_size,(player->getSpeed()<<8)/1109,44100,0,true,0);
 }
 /**
 **Process height map
@@ -948,7 +971,7 @@ void InGame::addPlayerBomb(){
 void InGame::doUpdates(){
 
 	//Update Plane
-	updatePlayer();
+	if(!player->getDestroyed()){updatePlayer();}
 
 	//Update viewport
 	updateViewport();
@@ -968,8 +991,18 @@ void InGame::updateAI(){
 
 	while( it != AIObjects.end()) {
 		AIObject* ai = *it;
-		//Do something here
-
+		//This will make hardpoint turn towards target (if applicable) and update render offset
+		ai->updateHardpoint();
+		
+		//If AI does not have a current target try and aquire one
+		if(!ai->hasTarget()&&!player->getDestroyed()){
+			ai->setTarget(player);
+			//vector<AIObject*>::iterator targetit;
+			//targetit = AIObjects.begin();
+			//while( targetit != AIObjects.end()) {
+			//	AIObject* targetai = *targetit;
+			//}
+		}
 		it++;
 	}
 }
@@ -988,7 +1021,7 @@ void InGame::updatePlayer(){
 
 	//Check for takeoff
 	if(player->onRunway&&(((player->getX()>>8)+player->getObjectWidth()>runwayEnd&&heading==0)||((player->getX()>>8)<runwayStart&&heading==256))&&player->takingOff==1){
-		if(player->speed<MINPLANESPEED){planeCrash();return;}	//Crash if we have reached the end of runway and we are not fast enough
+		if(player->speed<MINPLANESPEED){playerCrash();return;}	//Crash if we have reached the end of runway and we are not fast enough
 		player->onRunway=0;
 		player->takingOff=0;
 		if(heading==256){player->setHeading(246<<8);}
@@ -1028,7 +1061,7 @@ void InGame::updatePlayer(){
 		
 		//Check for end of runway
 		if(player->takingOff==-1&&player->speed>0&&((player->getX()>>8)+player->getObjectWidth()>runwayEnd||(player->getX()>>8)<runwayStart)){
-			planeCrash();
+			playerCrash();
 		}
 
 		//Do a refeuling here turning around etc if landing
@@ -1082,12 +1115,12 @@ void InGame::updatePlayer(){
 	player->setY(player->getY()+player->vy);
 	player->speed=speed;
 
-	u16 contactingRunway = ((player->getX()>>8)>runwayStart&&(player->getX()>>8)<runwayEnd)&&playerLandscapeCollision();
+	u16 contactingRunway = ((player->getX()>>8)>runwayStart&&(player->getX()>>8)<runwayEnd)&&collideObject(player,&InGame::rotatedRectangleCollision,true,false,false,false,false);
 
 	//If plane is currently in the air and is contacting the runway
 	if((player->takingOff==0&&contactingRunway)){
 		if((heading>255&&heading<281)||(heading>486)){
-			if(player->speed>MINPLANESPEED+100){planeCrash();return;}//Need to be going at slowly to land
+			if(player->speed>MINPLANESPEED+100){playerCrash();return;}//Need to be going at slowly to land
 			player->takingOff=-1;
 			player->onRunway=1;
 			player->setY((runwayHeight+12)<<8);
@@ -1095,7 +1128,7 @@ void InGame::updatePlayer(){
 			else{player->setHeading(0);}
 		}
 		else{
-			planeCrash();return; //Crash since we came at the runway at to steep angle
+			playerCrash();return; //Crash since we came at the runway at to steep angle
 		}
 	}
 
@@ -1116,8 +1149,8 @@ void InGame::updatePlayer(){
 }
 
 void InGame::playerCollisions(){
-	if(playerLandscapeCollision()||playerLandscapeObjectCollison()){
-		planeCrash();
+	if(collideObject(player,&InGame::rotatedRectangleCollision,true,true,false,true,false)){
+		playerCrash();
 	}
 }
 
@@ -1163,39 +1196,6 @@ void InGame::addParticlesFromObject(DestructableObject* destructable){
 	}
 }
 
-/**
-Could optimise this by seeing distance between player and object
-caching it each time then if its increasing break the loop since gameobjects
-are in linear order
-**/
-bool InGame::playerLandscapeObjectCollison(){
-	vector<DestructableObject*>::iterator it;
-	it = landscapeObjects.begin();
-	
-	s32 playerx = 0;
-	s32 playery = 0;
-	getBottomEndOfObject(player,playerx,playery,1);
-
-	while( it != landscapeObjects.end()) {
-		DestructableObject* destructable = (*it);
-		if(destructable->getDestroyed()){it++;continue;}
-		SpriteInfo* si = destructable->getSpriteInfo();
-		s16 destx = ((destructable->getX()>>8)+(si->getSpriteWidth()/2)) -destructable->getObjectWidth()/2;
-		s16 desty = ((destructable->getY()>>8)+(si->getSpriteHeight()/2)) -destructable->getObjectHeight()/2;
-		s16 destwidth = destructable->getObjectWidth();
-		s16 destheight = destructable->getObjectHeight();
-
-		if(pointInRectangleCollision(playerx,playery,destx,desty,destwidth,destheight)){
-			destructable->destructObject();
-			releaseObjectResources(destructable);
-			addParticlesFromObject(destructable);
-			return true;
-		}
-		it++;
-	}
-	return false;
-}
-
 void InGame::releaseObjectResources(GameObject* go){
 	SpriteInfo* si = go->getSpriteInfo();
 	
@@ -1221,7 +1221,26 @@ void InGame::releaseObjectResources(GameObject* go){
 	}
 }
 
-bool InGame::pointInRectangleCollision(s16 pointx,s16 pointy,s16 rectanglex,s16 rectangley,u16 width,u16 height){
+/**
+Assumes that go1 represents single point
+and go2 represents rect bounding box
+
+@go1 => Represents single point
+@go2 => Represents bounding box
+
+**/
+bool InGame::pointInRectangleCollision(GameObject* go1,GameObject* go2){
+	s16 pointx = go1->getX()>>8;
+	s16 pointy = go1->getY()>>8;
+
+	s16 cx = (go2->getX()>>8)+go2->getSpriteInfo()->getSpriteWidth()/2;
+	s16 cy = (go2->getY()>>8)+go2->getSpriteInfo()->getSpriteHeight()/2;
+
+	s16 rectanglex = cx - go2->getObjectWidth();
+	s16 rectangley = cy - go2->getObjectHeight();
+	u16 width =go2->getObjectWidth();
+	u16 height =go2->getObjectHeight();
+	
 	if(pointx>rectanglex&&pointx<rectanglex+width){
 		if(pointy>rectangley&&pointy<rectangley+height){
 			return true;
@@ -1231,10 +1250,23 @@ bool InGame::pointInRectangleCollision(s16 pointx,s16 pointy,s16 rectanglex,s16 
 }
 /**
 Reasonably fast circle collision, overlap needs to be sqrtd to be accurate
-works by getting closest corner and doing squared distance to center of circle
+works by getting closest corner and doing squared distance to center of circle.
+
+@go1 => circle object...object width is taken as explosion radius
+@go2 => rect object 
 **/
-bool InGame::circleAndSquareCollision(s16 x0,s16 y0,u16 w0,u16 h0,s16 cx,s16 cy,u16 radius){
-    s16 testX=cx;
+bool InGame::circleAndRectangleCollision(GameObject* go1,GameObject* go2){
+	SpriteInfo* si = go2->getSpriteInfo();
+	s16 x0 = ((go2->getX()>>8)+(si->getSpriteWidth()/2)) -go2->getObjectWidth()/2;
+	s16 y0 = ((go2->getY()>>8)+(si->getSpriteHeight()/2)) -go2->getObjectHeight()/2;
+	s16 w0 = go2->getObjectWidth();
+	s16 h0 = go2->getObjectHeight();
+	
+	s16 cx = (go1->getX()>>8)+go1->getSpriteInfo()->getSpriteWidth()/2;
+	s16 cy = (go1->getY()>>8)+go1->getSpriteInfo()->getSpriteHeight()/2;
+	u16 radius =  go1->getObjectWidth()/2;
+	
+	s16 testX=cx;
     s16 testY=cy;
 	if(testX < x0){testX=x0;}
 	if(testX >x0+w0){testX=x0+w0;}
@@ -1263,52 +1295,348 @@ void InGame::updateViewport(){
 	if(getViewPortY()>0){viewporty=0;}
 	
 	//Scroll background
-	if(getViewPortX()>0&&getViewPortX()+SWIDTH<currentLevel->levelWidth&&!player->crashed){
+	if(getViewPortX()>0&&getViewPortX()+SWIDTH<currentLevel->levelWidth&&!player->getDestroyed()){
 		bgscroll+=(((abs(player->vx)*(player->speed)>>8))/7*xflipped);
 		PA_BGScrollX(0,2,bgscroll>>8);
 	}
 }
-bool InGame::projectileLandscapeObjectCollison(ProjectileObject* projectile){
+
+/**
+Idea is to provide a generic function for all objects to collide with all
+others. Assuming that all objects are rotated rects....4 vertices of game object are found
+and the those points are checked against collisions with objects that they can collide with.
+
+Params:
+
+@object => Object to check for collisions
+@collisionRoutine => Collision routine that this object uses...either point in rect rot rect or circle rect
+@landscape => Does this object collide with the landscape
+@landscapeObj => Does this object collide with landscapeObjects
+@player => Does this object collide with the player
+@ai => Does this object collide with the AI
+**/
+
+bool InGame::collideObject(GameObject* go,bool (InGame::* collisionRoutine) (GameObject* go1,GameObject* go2),bool landscape,bool landscapeObj,bool player,bool ai, bool reflect){
+	bool collision = false;
+
+	if(landscape){
+		if(landscapeCollision(go,reflect))collision=true;
+	}
+	if(landscapeObj){
+		if(landscapeObjectCollision(go,collisionRoutine))collision=true;
+	}
+	if(ai){
+		if(AIObjectCollision(go,collisionRoutine))collision=true;
+	}
+	return collision;
+}
+
+bool InGame::landscapeCollision(GameObject* go,bool reflect){
+	
+	bool collision = false;
+	bool singlePointCollision = (!go->getSpriteInfo()->getUsesSprite());
+	u16 highestOverlap=0;
+	s32 collisionx=0;		//Used for finding normal of landscape at collision point
+	
+	//Setup collision vertices
+	s32 v0[2];
+	s32 v1[2];
+	s32 v2[2];
+	s32 v3[2];
+	getVertices(go,v0,v1,v2,v3);
+	
+	//If single point collision just collide with one point!
+	if(singlePointCollision){
+		v0[0]=go->getX();
+		v0[1]=go->getY();
+	}
+	if(landscapePointCollision(v0[0]>>8,v0[1]>>8)){
+		collision=true;
+		s16 overlap = v0[1]-(getHeightAtPoint(v0[0]>>8)<<8);
+		if(overlap>highestOverlap){highestOverlap=overlap;collisionx=v0[0];}
+	}
+	
+	if(!singlePointCollision){
+		if(landscapePointCollision(v1[0]>>8,v1[1]>>8)){
+			collision=true;
+			s16 overlap =v1[1]-(getHeightAtPoint(v1[0]>>8)<<8);
+			if(overlap>highestOverlap){highestOverlap=overlap;collisionx=v1[0];}
+		}
+
+		if(landscapePointCollision(v2[0]>>8,v2[1]>>8)){
+			collision=true;
+			s16 overlap = v2[1]-(getHeightAtPoint(v2[0]>>8)<<8);
+			if(overlap>highestOverlap){highestOverlap=overlap;collisionx=v2[0];}
+		}
+
+		if(landscapePointCollision(v3[0]>>8,v3[1]>>8)){
+			collision=true;
+			s16 overlap = v3[1]-(getHeightAtPoint(v3[0]>>8)<<8);
+			if(overlap>highestOverlap){highestOverlap=overlap;collisionx=v3[0];}
+		}
+	}
+	
+
+	//If object is to be reflected move it out of landscape and reflect.
+	if(collision&&reflect){
+		u16 headingAngle =  PA_GetAngle(go->getX(),go->getY(), go->getX()+go->vx,go->getY()+go->vy);
+
+		//Make sure object is moved out of scenery...Should really translate back along
+		//normal however its faster and easier to translate str8 up.
+		go->setY((go->getY()-highestOverlap)+256);
+
+		//Figure out reflection angle and apply it to current velocity
+		u16 reflectAngle = reflectOverNormal(headingAngle,getNormalAtPoint(collisionx>>8));
+		u16 currentSpeed=getSpeedFromVelocity(go->vx,go->vy);
+		go->vx=((currentSpeed*PA_Cos(reflectAngle))>>8);
+		go->vy=((currentSpeed*-PA_Sin(reflectAngle))>>8);
+		
+		//For each collision slow down veclocity	
+		go->vx=(go->vx*180)>>8;
+		go->vy=(go->vy*180)>>8;
+
+		//If we are dealing with a particle slow down rotation speed
+		ParticleObject* po = dynamic_cast<ParticleObject*>(go);
+		if(po!=NULL){
+			po->setRotSpeed(po->getRotSpeed()/3);
+		}
+	}
+	return collision;
+}
+
+bool InGame::landscapePointCollision(s16 x, s16 y){
+	return(y>getHeightAtPoint(x));
+}
+
+bool InGame::landscapeObjectCollision(GameObject * go,bool (InGame::* collisionRoutine) (GameObject* go1,GameObject* go2)){
+	bool collision = false;
+	
+	u16 objectStrength = numeric_limits<u16>::max();
+	//Projectiles are a special case of objectStrength
+	ProjectileObject* po = dynamic_cast<ProjectileObject*>(go);
+	if(po!=NULL){
+		if(po->isExploded()||!po->isExplosive()){
+			objectStrength=po->getProjectileStrength();
+		}
+		//An unexploded explosive projectile has no strength
+		else{
+			objectStrength=0;
+		}
+	}
+	
 	vector<DestructableObject*>::iterator it;
 	it = landscapeObjects.begin();
-	
-	//Needs to be modified to end middle of projectile
-	s32 cx = (projectile->getX()>>8);
-	s32 cy = (projectile->getY()>>8);
 
-	//If projectile uses sprite current position will jst be top left of it..we need to find front middle
-	if(projectile->getSpriteInfo()->getUsesSprite()){
-		getMiddleEndOfObject((GameObject*)projectile,cx,cy,1);
-	}
-
-	bool collision = false;
 	while( it != landscapeObjects.end()) {
 		DestructableObject* destructable = (*it);
 		if(destructable->getDestroyed()){it++;continue;}
-		u16 radius = (projectile->isExploded())? projectile->getExplosionRadius():1;
-		SpriteInfo* si = destructable->getSpriteInfo();
-		s16 destx = ((destructable->getX()>>8)+(si->getSpriteWidth()/2)) -destructable->getObjectWidth()/2;
-		s16 desty = ((destructable->getY()>>8)+(si->getSpriteHeight()/2)) -destructable->getObjectHeight()/2;
-		s16 destwidth = destructable->getObjectWidth();
-		s16 destheight = destructable->getObjectHeight();
-		if(circleAndSquareCollision(destx,desty,destwidth,destheight,cx,cy,radius)){
-			destructable->setHealth(destructable->getHealth()-projectile->getProjectileStrength());
+		if((this->*collisionRoutine)(go,destructable)){
 			collision=true;
-			projectile->explode();
+			destructable->setHealth(destructable->getHealth()-objectStrength);
 			if(destructable->getHealth()<=0){
 				destructable->destructObject();
 				releaseObjectResources(destructable);
 				addParticlesFromObject(destructable);
 			}
-			
 		}
 		it++;
 	}
 	return collision;
 }
-bool InGame::projectileCollision(ProjectileObject* projectile){
-	return (projectileLandscapeObjectCollison(projectile));
+
+bool InGame::AIObjectCollision(GameObject * go,bool (InGame::* collisionRoutine) (GameObject* go1,GameObject* go2)){
+	bool collision = false;
+
+	u16 objectStrength = numeric_limits<u16>::max();
+	//Projectiles are a special case of objectStrength
+	ProjectileObject* po = dynamic_cast<ProjectileObject*>(go);
+	if(po!=NULL){
+		if(po->isExploded()||!po->isExplosive()){
+			objectStrength=po->getProjectileStrength();
+		}
+		//An unexploded explosive projectile has no strength
+		else{
+			objectStrength=0;
+		}
+	}
+	
+	vector<AIObject*>::iterator it;
+	it = AIObjects.begin();
+
+	while( it != AIObjects.end()) {
+		AIObject* ai = (*it);
+		if(ai->getDestroyed()){it++;continue;}
+		if((this->*collisionRoutine)(go,ai)){
+			collision=true;
+			ai->setHealth(ai->getHealth()-objectStrength);
+			if(ai->getHealth()<=0){
+				ai->destructObject();
+				releaseObjectResources(ai);
+				releaseObjectResources(ai->getHardpoint());
+				addParticlesFromObject(ai);
+			}
+		}
+		it++;
+	}
+	return collision;
 }
+
+/**
+Gets the 4 vertices of a game object, sets them using <<8 position
+**/
+void InGame::getVertices(GameObject* go,s32 *v0,s32 *v1,s32 *v2,s32 *v3){
+	SpriteInfo* si = go->getSpriteInfo();
+	
+	s32 cx = go->getX()+((si->getSpriteWidth()/2)<<8);
+	s32 cy = go->getY()+((si->getSpriteHeight()/2)<<8);
+
+	//What angle is particle currently facing towards
+	s16 facingAngle = si->getAngle()>>8;
+	s16 facingComponentx = PA_Cos(facingAngle);
+	s16 facingComponenty = -PA_Sin(facingAngle);
+	s16 facingLeft = (facingAngle>128&&facingAngle<384)? 1:-1;
+	
+	//Get the top and bottom middle of the game object
+	s16 topNormal = wrapAngle(facingAngle+(-128*facingLeft));
+	s16 bottomNormal = wrapAngle(facingAngle+(128*facingLeft));
+	
+	u16 halfWidth = go->getObjectWidth()/2;		//Half height for finding top and bottom middle
+	u16 halfHeight = go->getObjectHeight()/2;	//Half width for translating along side to tip on rect
+
+	s16 componentxTop = PA_Cos(topNormal); 
+	s16 componentyTop = -PA_Sin(topNormal);
+
+	s32 topx = cx+halfHeight*componentxTop;
+	s32 topy = cy+halfHeight*componentyTop;
+
+	s16 componentxBottom = PA_Cos(bottomNormal); 
+	s16 componentyBottom = -PA_Sin(bottomNormal);
+
+	s32 bottomx = cx+halfHeight*componentxBottom;
+	s32 bottomy = cy+halfHeight*componentyBottom;
+
+	//Find all the corners of the object
+	s32 topLeftx = topx-facingComponentx*halfWidth;
+	s32 topLefty = topy-facingComponenty*halfWidth;
+
+	s32 topRightx =topx+facingComponentx*halfWidth; 
+	s32 topRighty =topy+facingComponenty*halfWidth;
+
+	s32 bottomLeftx = bottomx-facingComponentx*halfWidth;
+	s32 bottomLefty = bottomy-facingComponenty*halfWidth;
+
+	s32 bottomRightx =bottomx+facingComponentx*halfWidth;
+	s32 bottomRighty =bottomy+facingComponenty*halfWidth;
+
+	v0[0] = topLeftx;
+	v0[1] = topLefty;
+	v1[0] = topRightx;
+	v1[1] = topRighty;
+	v2[0] = bottomLeftx;
+	v2[1] = bottomLefty;
+	v3[0] = bottomRightx;
+	v3[1] = bottomRighty;
+}
+
+/**
+Since my math is not amazing, i am going to go for a line intersection
+algorithm (instead of linear sepparation algorithm). Test if any lines of one 
+rect intersect with any lines of the other, as soon as we find a single intersection
+there must be a collision!. Optimized by doing a quick circle bounds check first.
+**/
+
+bool InGame::rotatedRectangleCollision(GameObject * go1,GameObject* go2){
+
+	//First make sure that they r close enuf to collide
+	s32 go1cx = (go1->getX()>>8)+go1->getSpriteInfo()->getSpriteWidth()/2;
+	s32 go1cy = (go1->getY()>>8)+go1->getSpriteInfo()->getSpriteHeight()/2;
+
+	s32 go2cx = (go2->getX()>>8)+go2->getSpriteInfo()->getSpriteWidth()/2;
+	s32 go2cy = (go2->getY()>>8)+go2->getSpriteInfo()->getSpriteHeight()/2;
+	
+	u32 currentDistSquared = squared(go1cx-go2cx)+squared(go1cy-go2cy);
+
+	//Basically here we are getting the highest dimension (width or height) for each
+	//Game object then *1.5 to get circle  of collision each of them. We then get the square
+	//of the combined circles radius and compare it to the current dist. If we are closer then this
+	//we go on to do full collision check
+	u32 minDistSquared = squared((u16)((highest((u16)(go1->getObjectWidth()/2),(u16)(go1->getObjectHeight()/2))*1.5)+(highest((u16)(go2->getObjectWidth()/2),(u16)(go2->getObjectHeight()/2))*1.5)));
+	if(currentDistSquared>minDistSquared){return false;}
+
+	//Ok so we know they r quite close so do a full collision check
+	Line go1Lines[4];
+	Line go2Lines[4];
+
+	//Function to get all lines of rect1
+	getLinesForRectangle(go1,go1Lines);
+
+	//Function to get all lines of rect2
+	getLinesForRectangle(go2,go2Lines);
+
+	//N^2 loop which tests all lines intersecting all other lines (4v4 so 16 tests)
+	PA_ClearTextBg(1);
+	for(u16 i =0;i<4;i++){
+		for(u16 i2=0;i2<4;i2++){
+			if(LineIntersect(go1Lines[i],go2Lines[i2])){
+				return true;
+			}
+		}
+	}
+
+	//No intersecting lines found
+	return false;
+}
+
+void InGame::getLinesForRectangle(GameObject* go,Line* lines){
+	s32 v0[2];
+	s32 v1[2];
+	s32 v2[2];
+	s32 v3[2];
+	
+	getVertices(go,v0,v1,v2,v3);
+	
+	//Top left to top right
+	lines[0].o = Vector2D(v0[0]>>8,v0[1]>>8);
+	lines[0].p = Vector2D(v1[0]>>8,v1[1]>>8);
+
+	//Top right to bottom right
+	lines[1].o = Vector2D(v1[0]>>8,v1[1]>>8);
+	lines[1].p = Vector2D(v3[0]>>8,v3[1]>>8);
+
+	//Bottom right to bottom left
+	lines[2].o = Vector2D(v3[0]>>8,v3[1]>>8);
+	lines[2].p = Vector2D(v2[0]>>8,v2[1]>>8);
+
+	//Bottom left to top left
+	lines[3].o = Vector2D(v2[0]>>8,v2[1]>>8);
+	lines[3].p = Vector2D(v0[0]>>8,v0[1]>>8);
+}
+
+bool InGame::LineIntersect( Line &a, Line &b){
+	s32 x1 = a.o.x;
+	s32 y1 = a.o.y;
+	s32 x2 = a.p.x;
+	s32 y2 = a.p.y;
+	s32 x3 = b.o.x;
+	s32 y3 = b.o.y;
+	s32 x4 = b.p.x;
+	s32 y4 = b.p.y;
+
+    s32 d = (x1-x2)*(y3-y4) - (y1-y2)*(x3-x4);
+    if (d == 0) return false; //No intersect
+    
+    s32 xi = ((x3-x4)*(x1*y2-y1*x2)-(x1-x2)*(x3*y4-y3*x4))/d;
+    s32 yi = ((y3-y4)*(x1*y2-y1*x2)-(y1-y2)*(x3*y4-y3*x4))/d;
+	
+	//Test if point is on both lines
+	if(min(x1,x2)<=xi&&max(x1,x2)>=xi&&min(y1,y2)<=yi&&max(y1,y2)>=yi){
+		if(min(x3,x4)<=xi&&max(x3,x4)>=xi&&min(y3,y4)<=yi&&max(y3,y4)>=yi){
+			PA_OutputText(1,0, 18, "COLLISION!!!!!!!");
+			return true;
+		}
+	}
+	return false;
+ }
 void InGame::updateProjectiles(){
 	vector<ProjectileObject*>::iterator it;
 	it = projectiles.begin();
@@ -1352,21 +1680,28 @@ void InGame::updateProjectiles(){
 				projectile->explode();
 			}
 		}
-		//If it collides with landscape explode it
-		if(landscapeCollision(px,py)){
-			projectile->explode();
+		bool collision = false;
+
+		//Projectiles with no sprite use point in rect otherwise they use rot rect routine
+		if(projectile->getSpriteInfo()->getUsesSprite()){
+			collision = collideObject(projectile,&InGame::rotatedRectangleCollision,true,true,false,true,false);
 		}
-		//Now check collision with actual game objects
-		projectileCollision(projectile);
-		
-		//Check for out of level bounds
-		if(px<0||px>currentLevel->levelWidth||py<SHEIGHT-currentLevel->levelHeight){
-			it=projectiles.erase(it);
-			continue;
+		else{
+			collision = collideObject(projectile,&InGame::pointInRectangleCollision,true,true,false,true,false);
 		}
 
-		//If somehow it exploded erase it and add explosion animation if it has one!
+		//If we had a collison explode the projectile
+		if(collision){projectile->explode();}
+
+		//If somehow it exploded do another collision checl with explosion then erase
 		if(projectile->isExploded()){
+			//Collide explosion from projectile (if it has one)
+			if(projectile->isExplosive()){
+				projectile->setObjectWidth(projectile->getExplosionRadius()*2);
+				collideObject(projectile,&InGame::circleAndRectangleCollision,false,true,false,true,false);
+			}
+
+			//Ideally would like to do sounds with LUT
 			if(projectile->getName()->compare("bomb") == 0){
 				PA_PlaySound(PA_GetFreeSoundChannel(),player_bombhit_sfx,(u32)player_bombhit_sfx_size,127,44100);
 			}
@@ -1379,7 +1714,7 @@ void InGame::updateProjectiles(){
 	
 }
 void InGame::addExplosionAnimationFromProjectile(ProjectileObject* projectile){
-	if(landscapeCollision(projectile->getX()>>8,projectile->getY()>>8)){
+	if(landscapePointCollision(projectile->getX()>>8,projectile->getY()>>8)){
 		projectile->setY((getHeightAtPoint(projectile->getX()>>8)<<8)); //Push projectile out of the ground
 	}
 	ParticleObject* particle = new ParticleObject(*projectile->getExplosionAnimation());
@@ -1400,12 +1735,7 @@ void InGame::addExplosionAnimationFromProjectile(ProjectileObject* projectile){
 	particles.push_back(particle);
 
 	//If particle had sprite ref add it back to the pool at set it to invisible
-	s16 spriteRef = projectile->getSpriteInfo()->getSpriteIndex();
-	if(spriteRef!=-1){
-		spritePool.push_back(spriteRef);
-		PA_SetSpriteY(0,spriteRef,193);
-		projectile->getSpriteInfo()->setSpriteIndex(-1);
-	}
+	releaseObjectResources(projectile);
 }
 
 u16 InGame::getSpeedFromVelocity(s16 vx,s16 vy){	
@@ -1426,19 +1756,19 @@ void InGame::updateParticles(){
 	while( it != particles.end()) {
 		ParticleObject* po = (*it);
 		//Update ttl and current position and current angle
-		po->ttl--;
+		po->setTtl(po->getTtl()-1);
 		SpriteInfo* si = po->getSpriteInfo();
-		si->setAngle(wrapBigAngle(si->getAngle()+po->rotSpeed));
+		si->setAngle(wrapBigAngle(si->getAngle()+po->getRotSpeed()));
 		po->setX(po->getX()+po->vx);
 		po->setY(po->getY()+po->vy);
 		if((po->getX()>>8)>0&&(po->getX()>>8)<currentLevel->levelWidth){
 			if(po->isHeavy()){
-				if(!particleLandscapeCollision(po)){
+				if(!collideObject(po,&InGame::rotatedRectangleCollision,true,false,false,false,true)){
 					po->vy+=GRAVITY;
 				}
 			}
 		}
-		if(po->ttl==0){
+		if(po->getTtl()==0){
 			//Delete particle and recover rot index and sprie index
 			s16 spriteIndex = si->getSpriteIndex();
 			s16 rotIndex = si->getRotIndex();
@@ -1455,109 +1785,6 @@ void InGame::updateParticles(){
 		}
 		else{it++;}
 	}
-}
-/**
-Particle landscape collision, will work by finding all four corners of square
-and then checks landscape collision for each of them....and then reflects off of
-appropriate normals...and /2 vx and vy.
-**/
-
-bool InGame::particleLandscapeCollision(ParticleObject* po){
-	//Ok first check height of ground at this point and reject trivial cases
-	if((po->getY()>>8)<getHeightAtPoint((po->getX()>>8)+po->getObjectHeight())-20){
-		return false;
-	}
-	
-	SpriteInfo* si = po->getSpriteInfo();
-
-	//Ok so we know we are close enough so start with getting the center of the particle as reference
-	s32 cx = po->getX()+((si->getSpriteWidth()/2)<<8);
-	s32 cy = po->getY()+((si->getSpriteHeight()/2)<<8);
-	
-	//What angle is particle currently facing towards
-	s16 facingAngle = si->getAngle();
-	s16 facingComponentx = PA_Cos(facingAngle);
-	s16 facingComponenty = -PA_Sin(facingAngle);
-	s16 facingLeft = (facingAngle>128&&facingAngle<384)? 1:-1;
-	
-	//What angle is particle currently heading towards
-	u16 headingAngle =  PA_GetAngle(po->getX(),po->getY(), po->getX()+po->vx,po->getY()+po->vy);
-	
-	//Get the top and bottom middle of the particle
-	s16 topNormal = wrapAngle(facingAngle+(-128*facingLeft));
-	s16 bottomNormal = wrapAngle(facingAngle+(128*facingLeft));
-	u16 radius = po->getObjectWidth()/2;
-
-	s16 componentxTop = PA_Cos(topNormal); 
-	s16 componentyTop = -PA_Sin(topNormal);
-
-	s32 topx = cx+radius*componentxTop;
-	s32 topy = cy+radius*componentyTop;
-
-	s16 componentxBottom = PA_Cos(bottomNormal); 
-	s16 componentyBottom = -PA_Sin(bottomNormal);
-
-	s32 bottomx = cx+radius*componentxBottom;
-	s32 bottomy = cy+radius*componentyBottom;
-
-	//Find all the corners of the particles
-	s32 topLeftx = topx-facingComponentx*radius;
-	s32 topLefty = topy-facingComponenty*radius;
-
-	bool collision = false;
-	u16 highestOverlap=0;
-	s32 collisionx=0;
-
-	if(landscapeCollision(topLeftx>>8,topLefty>>8)){
-		collision=true;
-		s16 overlap = topLefty-(getHeightAtPoint(topLeftx>>8)<<8);
-		if(overlap>highestOverlap){highestOverlap=overlap;collisionx=topLeftx;}
-		
-	}
-	s32 topRightx =topx+facingComponentx*radius; 
-	s32 topRighty =topy+facingComponenty*radius;
-
-	if(landscapeCollision(topRightx>>8,topRighty>>8)){
-		collision=true;
-		s16 overlap =topRighty-(getHeightAtPoint(topRightx>>8)<<8);
-		if(overlap>highestOverlap){highestOverlap=overlap;collisionx=topRightx;}
-	}
-
-	s32 bottomLeftx = bottomx-facingComponentx*radius;
-	s32 bottomLefty = bottomy-facingComponenty*radius;
-
-	if(landscapeCollision(bottomLeftx>>8,bottomLefty>>8)){
-		collision=true;
-		s16 overlap = bottomLefty-(getHeightAtPoint(bottomLeftx>>8)<<8);
-		if(overlap>highestOverlap){highestOverlap=overlap;collisionx=bottomLeftx;}
-	}
-
-	s32 bottomRightx =bottomx+facingComponentx*radius;
-	s32 bottomRighty =bottomy+facingComponenty*radius;
-
-	if(landscapeCollision(bottomRightx>>8,bottomRighty>>8)){
-		collision=true;
-		s16 overlap = bottomRighty-(getHeightAtPoint(bottomRightx>>8)<<8);
-		if(overlap>highestOverlap){highestOverlap=overlap;collisionx=bottomRightx;}
-	}
-
-	if(collision){
-		//Make sure object is moved out of scenery
-		po->setY((po->getY()-highestOverlap)+256);
-
-		//Figure out reflection angle and apply it to current velocity
-		u16 reflectAngle = reflectOverNormal(headingAngle,getNormalAtPoint(collisionx>>8));
-		u16 currentSpeed=getSpeedFromVelocity(po->vx,po->vy);
-		//if(currentSpeed<=1000){currentSpeed=0;}
-		po->vx=((currentSpeed*PA_Cos(reflectAngle))>>8);
-		po->vy=((currentSpeed*-PA_Sin(reflectAngle))>>8);
-		
-		//For each collision slow down veclocity and rotate speed
-		po->rotSpeed/=3;
-		po->vx=(po->vx*180)>>8;
-		po->vy=(po->vy*180)>>8;
-	}
-	return collision;
 }
 
 u16 InGame::wrapAngle(s16 angle){
@@ -1604,7 +1831,7 @@ This does not use drawObject function since it has to do quirky
 animations based on its current heading!
 **/
 void InGame::drawPlayer(){
-	if(player->crashed)return;
+	if(player->getDestroyed())return;
 	//Rotate plane and set animation frame
 	SpriteInfo* si = player->getSpriteInfo();
 	u16 heading = (player->getHeading()>>8);
@@ -1697,8 +1924,8 @@ void InGame::drawAI(){
 	while( it != AIObjects.end()) {
 		AIObject* ai = (*it);
 		//Need logic to draw all hardpoints as well
-
-
+		drawObject(ai);
+		if(!ai->getDestroyed())drawObject(ai->getHardpoint());
 		it++;
 	}
 }
@@ -1796,7 +2023,7 @@ void InGame::drawLandscapeTiles(){
 		u16 thisHeight = (*it);
 		u16 nextHeight = (*(it+1));
 		u8 spriteIndex = abs(thisHeight-nextHeight)/2;
-		s16 y = taller(thisHeight,nextHeight);		   //Get height
+		s16 y = lowest(thisHeight,nextHeight);	//Lowest value is actually tallest
 		y-=getViewPortY();
 		
 		if(x>-16&&x<256&&y<SHEIGHT){		//Draw if tile on screen
@@ -1847,31 +2074,17 @@ void InGame::resetLandscape(){
 }
 
 /**
-** inline taller function
+** inline lower function
 **/
-u16 InGame::taller(u16 a,u16 b){
+u16 InGame::lowest(u16 a,u16 b){
 	return(a<b)? a:b;
 }
 
 /**
 ** inline smaller function
 **/
-u16 InGame::smaller(u16 a,u16 b){
+u16 InGame::highest(u16 a,u16 b){
 	return(a>b)? a:b;
-}
-
-u16 InGame::playerLandscapeCollision(){
-	if(player->onRunway){return 0;}
-
-	s32 tipxFront = 0;
-	s32 tipyFront = 0;
-	s32 tipxBack = 0;
-	s32 tipyBack = 0;
-	getBottomEndOfObject(player,tipxFront,tipyFront,1);
-	getBottomEndOfObject(player,tipxBack,tipyBack,-1);
-	
-	//Now collision tests
-	return(landscapeCollision(tipxFront,tipyFront)||landscapeCollision(tipxBack,tipyBack));
 }
 
 /**
@@ -1916,10 +2129,6 @@ void InGame::getMiddleEndOfObject(GameObject* go,s32 &x,s32 &y,s16 direction){
 
 	x = cx+(((xComponent*radius)>>8)*direction);
 	y = cy+(((yComponent*radius)>>8)*direction);
-}
-
-int InGame::landscapeCollision(s16 x, s16 y){
-	return(y>getHeightAtPoint(x));
 }
 
 /**
@@ -1967,17 +2176,16 @@ s16 InGame::wrapAngleDistance(u16 angle1,u16 angle2){
 /**
 **
 **/
-void InGame::planeCrash(){
+void InGame::playerCrash(){
 	PA_SetSoundChannelVol(0,0);	//Kill engine sound
 	PA_PlaySound(PA_GetFreeSoundChannel(),crash_sfx,(u32)crash_sfx_size,127,44100);
-	player->crashed=true;
-	PA_SetSpriteY(0, 0, 193);	// Hide sprite
-
-	planeCrashParticles();
 	u16 plane_gfx = player->getSpriteInfo()->getGfxRef();
+	player->destructObject();
+	PA_SetSpriteY(0, 0, 193);	// Hide sprite
+	planeCrashParticles();
 	delete player;
-	SpriteInfo* so = new SpriteInfo(32,32,0,plane_gfx,0,0,0,OBJ_SIZE_32X32,256,0,2,true,true,false);
-	player = new PlayerObject(runwayStart<<8,(runwayHeight+12)<<8,16,8,0,0,0,9,60,so,new ParticleObject(*particleReferenceObjects[4]));
+	SpriteInfo* si = new SpriteInfo(32,32,0,plane_gfx,0,0,0,OBJ_SIZE_32X32,256,0,2,true,true,false);
+	player = new PlayerObject(runwayStart<<8,(runwayHeight+12)<<8,16,8,0,0,0,9,60,si,new ParticleObject(*particleReferenceObjects[4]));
 	scrollBackToRunway();
 }
 void InGame::planeCrashParticles(){
@@ -1988,17 +2196,14 @@ void InGame::planeCrashParticles(){
 	ParticleObject* po = particles.back();
 	po->setX(player->getX());
 	po->setY(player->getY());
-	
+
 	//Make sure viewport is kept on last particle
 	for(u16 i=0;i<player->getParticleSpriteInstance()->getTtl()-60;i++){
-		drawParticles();
-		updateParticles();
-		updateProjectiles();
-		ParticleObject* po = particles.back();	//Particle at end will always been bit of plane since this function is called immediately after crash
+		doUpdates();
+		doDrawing();
+
 		player->setX(po->getX());
 		player->setY(po->getY());
-		updateViewport();
-		doDrawing();
 
 		print_debug();
 		PA_WaitForVBL();
@@ -2041,22 +2246,16 @@ wanna print to screen
 void InGame::print_debug(void){
 	//Put your debug print statements here.... make sure to print to screen 1	
 	PA_ClearTextBg(1);
-	PA_OutputText(1,0, 0, "Title is: %s", currentLevel->levelTitle->c_str());
-	PA_OutputText(1,0, 1, "Viewport x:%d y:%d", getViewPortX(),getViewPortY());
-	PA_OutputText(1,0, 2, "Plane x:%d y:%d", player->getX()>>8,player->getY()>>8);
-	PA_OutputText(1,0, 3, "Plane vx:%d vy:%d", player->vx,player->vy);
-	PA_OutputText(1,0, 4, "Landscape sprites used:%d", landscapeIndexs.size());
-	PA_OutputText(1,0, 5, "Available sprites:%d", spritePool.size());
-	PA_OutputText(1,0, 6, "Plane taking off:%d", player->takingOff);
-	PA_OutputText(1,0, 7, "Particle count:%d", particles.size());
-	PA_OutputText(1,0, 8, "Projectile count:%d", projectiles.size());
-	PA_OutputText(1,0, 9,"Rot pool size:%d", rotPool.size());
-	PA_OutputText(1,0, 10,"Bombs: %d Ammo: %d Fuel: %d Health %d",player->totalBombs,player->totalAmmo,player->totalFuel,player->getHealth());
-	PA_OutputText(1,0, 14,"Player test :%d", landscapeObjects.at(0)->getSpriteInfo()->usesAnimation());
-
-	if(particles.size()>0){
-		ParticleObject* dest = particles.at(0);
-		
-		PA_OutputText(1,0, 15,"Test: %d %d",dest->getX()>>8,dest->getY()>>8);
-	}
+	//PA_OutputText(1,0, 0, "Title is: %s", currentLevel->levelTitle->c_str());
+	//PA_OutputText(1,0, 1, "Viewport x:%d y:%d", getViewPortX(),getViewPortY());
+	//PA_OutputText(1,0, 2, "Plane x:%d y:%d", player->getX()>>8,player->getY()>>8);
+	//PA_OutputText(1,0, 3, "Plane vx:%d vy:%d", player->vx,player->vy);
+	//PA_OutputText(1,0, 4, "Landscape sprites used:%d", landscapeIndexs.size());
+	//PA_OutputText(1,0, 5, "Available sprites:%d", spritePool.size());
+	//PA_OutputText(1,0, 6, "Plane taking off:%d", player->takingOff);
+	//PA_OutputText(1,0, 7, "Particle count:%d", particles.size());
+	//PA_OutputText(1,0, 8, "Projectile count:%d", projectiles.size());
+	//PA_OutputText(1,0, 9,"Rot pool size:%d", rotPool.size());
+	//PA_OutputText(1,0, 10,"Bombs: %d Ammo: %d Fuel: %d Health %d",player->totalBombs,player->totalAmmo,player->totalFuel,player->getHealth());
+	//PA_OutputText(1,0, 13,"AI target test :%d", AIObjects.at(0)->getHardpoint()->angleToTarget);
 }

@@ -8,8 +8,9 @@ ProjectileObject::ProjectileObject(string* name,s32 startx,s32 starty,u16 width,
 	this->ttl=ttl;
 	this->explosionRadius=explosionRadius;
 	this->projectileStrength=projectileStrength;
-	this->exploding=false;
+	this->exploded=false;
 	this->explosionAnimation=NULL;
+	explosive=false;
 }
 
 ProjectileObject::ProjectileObject(string* name,s32 startx,s32 starty,u16 width,u16 height,s32 heading,s16 vx,s16 vy,SpriteInfo* si,s16 ttl,u16 explosionRadius,u16 projectileStrength,bool playerProjectile,ParticleObject* explosionAnimation): 
@@ -18,8 +19,9 @@ ProjectileObject::ProjectileObject(string* name,s32 startx,s32 starty,u16 width,
 	this->ttl=ttl;
 	this->explosionRadius=explosionRadius;
 	this->projectileStrength=projectileStrength;
-	this->exploding=false;
+	this->exploded=false;
 	this->explosionAnimation=explosionAnimation;
+	explosive=true;
 }
 
 ProjectileObject::ProjectileObject(const ProjectileObject &object):GameObject(object){
@@ -27,12 +29,13 @@ ProjectileObject::ProjectileObject(const ProjectileObject &object):GameObject(ob
 	this->ttl=object.ttl;
 	this->explosionRadius=object.explosionRadius;
 	this->projectileStrength=object.projectileStrength;
-	this->exploding=object.exploding;
+	this->exploded=object.exploded;
 
 	//WTF please someone tell me why you cant assign a pointer a null value before initialising it in
 	//a copy constructor!!!!
 	this->explosionAnimation=new ParticleObject(*object.explosionAnimation);
 	if(object.explosionAnimation==NULL)this->explosionAnimation=NULL;
+	this->explosive=(this->explosionAnimation==NULL)?false:true;
 }
 
 ProjectileObject::~ProjectileObject(){
@@ -54,10 +57,10 @@ bool ProjectileObject::isPlayerProjectile(){
 	return this->playerProjectile;
 }
 void ProjectileObject::explode(){
-	this->exploding=true;
+	this->exploded=true;
 }
 bool ProjectileObject::isExploded(){
-	return this->exploding;
+	return this->exploded;
 }
 bool ProjectileObject::hasExplosionAnimation(){
 	return this->explosionAnimation!=NULL;
@@ -65,4 +68,8 @@ bool ProjectileObject::hasExplosionAnimation(){
 
 ParticleObject* ProjectileObject::getExplosionAnimation(){
 	return this->explosionAnimation;
+}
+
+bool ProjectileObject::isExplosive(){
+	return this->explosive;
 }

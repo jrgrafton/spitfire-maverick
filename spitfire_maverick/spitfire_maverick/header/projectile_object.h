@@ -12,6 +12,7 @@ class ProjectileObject : public GameObject{
 		u16 getProjectileStrength();
 		void explode();
 		bool isExploded();
+		bool isExplosive();
 		bool hasExplosionAnimation();
 		ParticleObject* getExplosionAnimation();
 
@@ -25,7 +26,8 @@ class ProjectileObject : public GameObject{
 		u16 explosionRadius;
 		u16 projectileStrength;
 		bool playerProjectile;
-		bool exploding;
+		bool exploded;
+		bool explosive;
 		ParticleObject* explosionAnimation;
 };
 #endif

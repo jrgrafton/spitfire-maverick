@@ -19,6 +19,7 @@ class GameObject{
 		s32 getHeading();
 		void setHeading(s32 heading);
 		s16 getSpeed();
+		void setObjectWidth(u16 width);
 		u16 getObjectWidth();
 		u16 getObjectHeight();
 		SpriteInfo* getSpriteInfo();

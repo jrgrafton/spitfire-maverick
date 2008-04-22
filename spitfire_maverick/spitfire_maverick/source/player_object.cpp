@@ -10,9 +10,8 @@ DestructableObject(startx,starty,width,height,heading,vx,vy,si,100,5,-1, particl
 	this->fireDelay=fireDelay;
 	this->bombDelay=bombDelay;
 	this->throttleOn=0;
-	this->onRunway=1;
+	this->onRunway=true;
 	this->takingOff=0;
-	this->crashed=false;
 	this->totalBombs=4;
 	this->totalAmmo=500;
 	this->totalFuel=5000;
@@ -44,4 +43,7 @@ void PlayerObject::setTimeSinceLastSmoked(s16 time){
 }
 u16 PlayerObject::getSmokingInterval(){
 	return this->smokingInterval;
+}
+bool PlayerObject::isOnRunway(){
+	return this->onRunway;
 }

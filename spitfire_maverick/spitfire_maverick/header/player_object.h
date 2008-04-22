@@ -10,9 +10,8 @@ class PlayerObject : public DestructableObject{
 		u16 timeSinceFired;
 		u16 timeSinceBombed;
 		u16 throttleOn;
-		u16 onRunway;
+		bool onRunway;
 		s16 takingOff;
-		bool crashed;
 		u16 totalAmmo;
 		u16 totalBombs;
 		u16 totalFuel;
@@ -27,6 +26,7 @@ class PlayerObject : public DestructableObject{
 		u16 getSmokingInterval();
 		u16 getTimeSinceLastSmoked();
 		void setTimeSinceLastSmoked(s16 time);
+		bool isOnRunway();
 
 		PlayerObject(s32 startx,s32 starty,u16 width,u16 height,s32 heading,s16 vx,s16 vy,u16 fireDelay,u16 bombDelay,SpriteInfo* si,ParticleObject* particleSpriteInstance);
 		~PlayerObject();

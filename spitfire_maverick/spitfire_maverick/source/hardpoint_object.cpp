@@ -14,7 +14,7 @@ HardpointObject::HardpointObject(s32 x,s32 y,u16 width,u16 height,s32 heading,Sp
 	this->po=po;
 	this->timeSinceLastFired=0;
 	this->firingVelocity=firingVelocity;
-	target=NULL;
+	this->target=NULL;
 }
 
 /**
@@ -22,17 +22,17 @@ Special copy constructor with ref to parent since when copying another
 hardpoint object (when say looking up and copying an AI object) we need
 to explicitly set the parent when the parent is copied.
 **/
-HardpointObject::HardpointObject(const HardpointObject &object,GameObject* parent):GameObject(object){
+HardpointObject::HardpointObject(const HardpointObject &object,GameObject &parent):GameObject(object){
 	this->fireDelay=object.fireDelay;
 	this->turningSpeed=object.turningSpeed;
 	this->maxInclination=object.maxInclination;
 	this->minInclination=object.minInclination;
-	this->po=new ProjectileObject(*po);
+	this->po=new ProjectileObject(*object.po);
 	this->timeSinceLastFired=0;
 	this->xOffset=object.xOffset;
 	this->yOffset=object.yOffset;
-	target=NULL;
-	this->parent = parent;
+	this->target=NULL;
+	this->parent = &parent;
 }
 
 HardpointObject::~HardpointObject(){}
@@ -51,30 +51,32 @@ void HardpointObject::fire(){this->timeSinceLastFired=0;}
 Turn this hard point towards its target
 **/
 void HardpointObject::turnTowardsTarget(){
-	if(target==NULL)return;
+	if(this->hasTarget()&&this->target->getDestroyed()){this->target=NULL;}
+	if(!this->hasTarget())return;
 	
-	u16 cx = (this->getX()>>8) + this->getSpriteInfo()->getSpriteWidth()/2;
-	u16 cy = (this->getY()>>8) + this->getSpriteInfo()->getSpriteHeight()/2;
-	u16 baseObjectAngle = parent->getHeading()>>8;
-	u16 angleToTarget = PA_GetAngle(cx,cy,this->target->getX()>>8,this->target->getY()>>8);
+	u32 cx = (this->getX()>>8) + this->getSpriteInfo()->getSpriteWidth()/2;
+	u32 cy = (this->getY()>>8) + this->getSpriteInfo()->getSpriteHeight()/2;
+	
+	u32 tcx = (this->target->getX()>>8) + this->target->getSpriteInfo()->getSpriteWidth()/2;
+	u32 tcy = (this->target->getY()>>8) + this->target->getSpriteInfo()->getSpriteWidth()/2;
 
-	//We are at our full turning extent so return
-	s32 necessaryInclination = InGame::wrapAngleDistance(baseObjectAngle,angleToTarget);
-	if(necessaryInclination>maxInclination||necessaryInclination<minInclination){return;}
+	u32 baseObjectAngle = parent->getHeading()>>8;
+	u32 angleToTarget =  PA_GetAngle(cx,cy,tcx,tcy);
 
 	//We are close to target so aim str8 at it
-	s16 distance = InGame::wrapAngleDistance(this->getHeading()>>8,angleToTarget);
-	if(abs(distance)<turningSpeed){this->setHeading(angleToTarget<<8);return;}
+	s32 distance =  InGame::wrapAngleDistance(angleToTarget,this->getHeading()>>8);
 	
 	//Else turn towards it
-	s32 heading = (distance<0)? InGame::wrapBigAngle(this->getHeading()-turningSpeed):(distance==0)?this->getHeading():InGame::wrapBigAngle(this->getHeading()+turningSpeed);
-	this->setHeading(heading);
-	this->getSpriteInfo()->setAngle(heading);
+	s32 proposedHeading = (distance<0)? InGame::wrapBigAngle(this->getHeading()-turningSpeed):InGame::wrapBigAngle(this->getHeading()+turningSpeed);
+	
+	//Are we allowed to turn to this inclination
+	s32 proposedInclination = this->angleToTarget=InGame::wrapAngleDistance(proposedHeading>>8,baseObjectAngle);
+	if(proposedInclination<maxInclination&&proposedInclination>minInclination){
+		this->setHeading(proposedHeading);
+		this->getSpriteInfo()->setAngle(proposedHeading);
+	}
 }
-void HardpointObject::update(){
-	//First try and turn towards target
-	turnTowardsTarget();
-
+void HardpointObject::updateRenderOffset(){
 	//Now calculate the position we should be in based of center of base object
 	s32 finalx = 0;
 	s32 finaly = 0;
@@ -107,4 +109,12 @@ ProjectileObject* HardpointObject::getProjectileObject(){
 
 u16 HardpointObject::getFiringVelocity(){
 	return this->firingVelocity;
+}
+
+bool HardpointObject::hasTarget(){
+	return this->target!=NULL;
+}
+
+void HardpointObject::setTarget(DestructableObject* target){
+	this->target=target;
 }

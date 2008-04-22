@@ -79,6 +79,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\source\menu.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\source\particle_object.cpp"
 				>
 			</File>
@@ -134,6 +138,10 @@
 			</File>
 			<File
 				RelativePath=".\header\main.h"
+				>
+			</File>
+			<File
+				RelativePath=".\header\menu.h"
 				>
 			</File>
 			<File

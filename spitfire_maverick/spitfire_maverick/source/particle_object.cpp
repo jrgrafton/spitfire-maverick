@@ -27,6 +27,16 @@ void ParticleObject::setRotSpeed(s16 rotSpeed){
 	this->rotSpeed=rotSpeed;
 }
 
-u16 ParticleObject::getTtl(){
+s16 ParticleObject::getRotSpeed(){
+	return this->rotSpeed;
+}
+
+s16 ParticleObject::getTtl(){
 	return this->ttl;
 }
+
+void ParticleObject::setTtl(s16 ttl){
+	this->ttl=ttl;
+}
+
+

@@ -10,6 +10,7 @@ extern "C" {
 
 // Background files : 
 #include "background_image.c"
+#include "menu_background_image.c"
 
 // Sprite files : 
 #include "spitfire_image.c"
@@ -123,10 +124,11 @@ extern "C" {
 #include "trees_particles_bomb.pal.c"
 #include "bomb_explosion.pal.c"
 #include "ai.pal.c"
+#include "menu_background_image.pal.c"
 
 // Background Pointers :
 PAGfx_struct background_image = {(void*)background_image_Map, 768, (void*)background_image_Tiles, 49152, (void*)background_image_Pal, (int*)background_image_Info };
-
+PAGfx_struct menu_background_image = {(void*)menu_background_image_Map, 768, (void*)menu_background_image_Tiles, 49152, (void*)menu_background_image_Pal, (int*)menu_background_image_Info };
 
 #ifdef __cplusplus
 }

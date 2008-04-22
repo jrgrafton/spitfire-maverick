@@ -6,6 +6,23 @@
 #include "../header/destructable_object.h"
 #include "../header/projectile_object.h"
 
+//Just used for rotated rectangle collision...didnt wanna bother with two extra
+//files just for this function
+class Vector2D {
+	public:
+		Vector2D(){}
+		Vector2D(s32 x,s32 y){this->x=x;this->y=y;}
+		s32 x, y;
+};
+
+class Line {
+	public:
+		Vector2D o;	//Start
+		Vector2D p; //End
+		Line(){}
+		Line(Vector2D o,Vector2D p){this->o=o;this->p=p;}
+};
+
 //Main State constants
 const u16 SCREENHOLE =48;	//How big percieved hole between screens is
 
@@ -48,7 +65,7 @@ class InGame : public State{
 	protected:
 		void init();
 	private:
-		//Init functions
+		/**--------------------------------Init functions--------------------------------**/
 		void initGraphics();
 		void initSound();
 		void initLanscapeLookup();
@@ -61,38 +78,9 @@ class InGame : public State{
 		void processHeightMap(char* fileLine,vector<u16>* heightMap);
 		int addNextHeight(string* line,vector<u16>* heightMap);
 		void addLandscapeObject(s32 x,u16 ref);
-		
-		//Collision based functions 
-		int landscapeCollision(s16 x,s16 y);
-		bool pointInRectangleCollision(s16 pointx,s16 pointy,s16 rectanglex,s16 rectangley,u16 width,u16 height);
-		bool circleAndSquareCollision(s16 x0,s16 y0,u16 w0,u16 h0,s16 cx,s16 cy,u16 radius);
-		void getBottomEndOfObject(GameObject* go,s32 &frontx,s32 &fronty,s16 direction);
-		void getMiddleEndOfObject(GameObject* go,s32 &frontx,s32 &fronty,s16 direction);
-		void releaseObjectResources(GameObject* go);		//Whenever we delete a gameObject make sure it releases its rot and sprite index
+		void addAIObject(s32 x,u16 ref);
 
-		//Player collisions function
-		void playerCollisions();
-		u16 playerLandscapeCollision();
-		bool playerLandscapeObjectCollison();
-		void planeCrash();
-		void planeCrashParticles();
-		void scrollBackToRunway();
-		
-		//Called from update particle..particles only collide with landscape
-		bool particleLandscapeCollision(ParticleObject* pa);
-		void addParticlesFromObject(DestructableObject* destructable);
-		
-		//Projectile collision routine called from update projectiles
-		bool projectileCollision(ProjectileObject* projectile);
-		bool projectileLandscapeObjectCollison(ProjectileObject* projectile);
-		void addExplosionAnimationFromProjectile(ProjectileObject* projctile);
-
-		//Input driven functions
-		void processInput();
-		void addPlayerBullet();
-		void addPlayerBomb();
-		
-		//Drawing functions
+		/**--------------------------------Drawing functions--------------------------------**/
 		void doDrawing();
 		void drawLandscapeTiles();
 		void drawLandscapeObjects();
@@ -103,18 +91,8 @@ class InGame : public State{
 		void drawRunway();
 		void drawAI();
 		void drawObject(GameObject* go);
-		
-		//Utility functions
-		inline u16 taller(u16 a,u16 b);
-		inline u16 smaller(u16 a,u16 b);
-		inline u32 squared(s32 a);
-		u16 getHeightAtPoint(u16 x);
-		u16 getNormalAtPoint(u16 x);
-		u16 reflectOverNormal(u16 angle,u16 normal);
-		inline s16 getViewPortX();
-		inline s16 getViewPortY();
-		
-		//Update functions
+
+		/**--------------------------------Update functions--------------------------------**/
 		void doUpdates();
 		void updatePlayer();
 		u16 getSpeedFromVelocity(s16 vx,s16 vy);
@@ -122,6 +100,50 @@ class InGame : public State{
 		void updateProjectiles();
 		void updateParticles();
 		void updateAI();
+		
+		/**--------------------------------Collision functions--------------------------------**/
+		bool collideObject(GameObject* go,bool (InGame::* collisionRoutine) (GameObject* go1,GameObject* go2),bool landscape,bool landscapeObj,bool player,bool ai,bool reflect);
+		bool landscapeCollision(GameObject * go,bool reflect);
+		bool landscapePointCollision(s16 x,s16 y);
+		bool landscapeObjectCollision(GameObject * go,bool (InGame::* collisionRoutine) (GameObject* go1,GameObject* go2));
+		bool AIObjectCollision(GameObject * go,bool (InGame::* collisionRoutine) (GameObject* go1,GameObject* go2));
+		
+		bool pointInRectangleCollision(GameObject* go1,GameObject* go2);
+		bool circleAndRectangleCollision(GameObject* go1,GameObject* go2);
+		bool rotatedRectangleCollision(GameObject* go1,GameObject* go2);
+		bool LineIntersect( Line &a, Line &b);
+		void getLinesForRectangle(GameObject* go,Line* lines);
+		void getVertices(GameObject* go,s32 *v0,s32 *v1,s32 *v2,s32 *v3);
+		void getBottomEndOfObject(GameObject* go,s32 &frontx,s32 &fronty,s16 direction);
+		void getMiddleEndOfObject(GameObject* go,s32 &frontx,s32 &fronty,s16 direction);
+		void releaseObjectResources(GameObject* go);		//Whenever we delete a gameObject make sure it releases its rot and sprite index
+		
+		//Player has special crash functions for camera tracking particles and scrolling back to runway
+		void playerCollisions();
+		void playerCrash();
+		void planeCrashParticles();
+		void scrollBackToRunway();
+		
+		//Called when destructable object explodes
+		void addParticlesFromObject(DestructableObject* destructable);
+
+		//Called when projectile explodes
+		void addExplosionAnimationFromProjectile(ProjectileObject* projctile);
+		
+		/**--------------------------------Util functions--------------------------------**/
+		inline u16 lowest(u16 a,u16 b);
+		inline u16 highest(u16 a,u16 b);
+		inline u32 squared(s32 a);
+		u16 getHeightAtPoint(u16 x);
+		u16 getNormalAtPoint(u16 x);
+		u16 reflectOverNormal(u16 angle,u16 normal);
+		inline s16 getViewPortX();
+		inline s16 getViewPortY();
+
+		//Input driven functions
+		void processInput();
+		void addPlayerBullet();
+		void addPlayerBomb();
 		
 		//Other functions
 		void print_debug(void);

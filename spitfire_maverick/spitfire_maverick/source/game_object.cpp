@@ -29,6 +29,8 @@ GameObject::GameObject(const GameObject &object){
 
 //Destructor
 GameObject::~GameObject(){
+	delete si;
+	delete name;
 }
 
 
@@ -83,4 +85,8 @@ void GameObject::setVx(s16 vx){
 }
 void GameObject::setVy(s16 vy){
 	this->vy=vy;
+}
+
+void GameObject::setObjectWidth(u16 width){
+	this->width=width;
 }

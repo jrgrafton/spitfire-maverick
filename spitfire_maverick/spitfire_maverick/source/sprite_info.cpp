@@ -117,7 +117,7 @@ s16 SpriteInfo::getPaletteIndex(){
 }
 
 bool SpriteInfo::getUsesSprite(){
-	return gfxref>=0;
+	return gfxref!=-1;
 }
 
 u16 SpriteInfo::getDoubleSize(){

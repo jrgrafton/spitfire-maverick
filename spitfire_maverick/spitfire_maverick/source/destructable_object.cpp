@@ -2,7 +2,7 @@
 #include "../header/game_object.h"
 #include "../header/destructable_object.h"
 
-DestructableObject::DestructableObject(s32 startx,s32 starty,u16 width,u16 height,s32 heading,s16 vx, s16 vy,SpriteInfo* si,s16 health,s16 particleCount,s16 destroyedGfxRef,ParticleObject* particleSpriteInstance):
+DestructableObject::DestructableObject(s32 startx,s32 starty,u16 width,u16 height,s32 heading,s16 vx, s16 vy,SpriteInfo* si,s32 health,s16 particleCount,s16 destroyedGfxRef,ParticleObject* particleSpriteInstance):
 GameObject(new string("landscape_object"),startx,starty,width,height,heading,vx, vy,si){
 	this->health=health;
 	this->particleCount=particleCount;
@@ -28,10 +28,10 @@ void DestructableObject::destructObject(){
 	this->objectDestroyed=true;
 }
 
-s16 DestructableObject::getHealth(){
+s32 DestructableObject::getHealth(){
 	return health;
 }
-void DestructableObject::setHealth(s16 health){
+void DestructableObject::setHealth(s32 health){
 	this->health=health;
 }
 u16 DestructableObject::getParticleCount(){

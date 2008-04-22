@@ -34,7 +34,7 @@ void init(void){
 	PA_Init8bitBg(0,0); //Init backgrounds
 	PA_Init8bitBg(1,0);
 	
-	mainState = new InGame();
+	mainState = new Splash();
 }
 
 /**
