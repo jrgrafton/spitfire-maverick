@@ -26,7 +26,7 @@ Menu::~Menu(){
 void Menu::run(){
 	//PA_PlaySoundRepeat(PA_GetFreeSoundChannel(), menu_music);
 	PA_PlaySoundEx2(8, menu_music, (s32)menu_music_size, 120, 44100,0, true,0);
-	PA_EasyBgLoad(0, 2, menu_background_image);
+	PA_EasyBgLoad(0, 0, menu_background_image);
 
 	while(!Stylus.Newpress){ // Display until keys pressed
 		PA_WaitForVBL();

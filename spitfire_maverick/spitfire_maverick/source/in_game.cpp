@@ -174,6 +174,10 @@ void InGame::initGraphics(){
 
 	//Init alpha
 	PA_EnableSpecialFx(0,SFX_ALPHA,0,SFX_BG0 | SFX_BG1 | SFX_BG2 | SFX_BG3 | SFX_BD);
+	
+	//Init backgrounds
+	PA_Init8bitBg(0,0); //Init backgrounds
+	PA_Init8bitBg(1,0);
 
 	//Init background
 	PA_SetBgPrio(0,0,0);
