@@ -6,7 +6,7 @@ PlayerObject::PlayerObject(s32 startx,s32 starty,u16 width,u16 height,s32 headin
 DestructableObject(startx,starty,width,height,heading,vx,vy,si,100,5,-1, particleSpriteInstance){
 	this->timeSinceFired=0;
 	this->timeSinceBombed=0;
-	this->speed=0;
+	this->setSpeed(0);
 	this->fireDelay=fireDelay;
 	this->bombDelay=bombDelay;
 	this->throttleOn=0;
@@ -44,6 +44,54 @@ void PlayerObject::setTimeSinceLastSmoked(s16 time){
 u16 PlayerObject::getSmokingInterval(){
 	return this->smokingInterval;
 }
+
+u16 PlayerObject::getTimeSinceFired(){
+	return this->timeSinceFired;
+}
+void PlayerObject::setTimeSinceFired(u16 time){
+	this->timeSinceFired=time;
+}
+u16 PlayerObject::getTimeSinceBombed(){
+	return this->timeSinceBombed;
+}
+void PlayerObject::setTimeSinceBombed(u16 time){
+	this->timeSinceBombed=time;
+}
+s16 PlayerObject::getTotalAmmo(){
+	return this->totalAmmo;
+}
+void PlayerObject::setTotalAmmo(s16 totalAmmo){
+	this->totalAmmo=totalAmmo;
+}
+s16 PlayerObject::getTotalBombs(){
+	return this->totalBombs;
+}
+
+void PlayerObject::setTotalBombs(s16 totalBombs){
+	this->totalBombs=totalBombs;
+}
+bool PlayerObject::isThrottleOn(){
+	return this->throttleOn;
+}
+void PlayerObject::setThrottle(bool throttleOn){
+	this->throttleOn=throttleOn;
+}
 bool PlayerObject::isOnRunway(){
 	return this->onRunway;
+}
+void PlayerObject::setOnRunway(bool onRunway){
+	this->onRunway=onRunway;
+}
+s16 PlayerObject::getTakingOff(){
+	return this->takingOff;
+}
+void PlayerObject::setTakingOff(s16 takingOff){
+	this->takingOff=takingOff;
+}
+s16 PlayerObject::getTotalFuel(){
+	return this->totalFuel;
+}
+
+void PlayerObject::setTotalFuel(s16 totalFuel){
+	this->totalFuel=totalFuel;
 }

@@ -4,11 +4,14 @@
 #include "../header/sprite_info.h" //Needed since its a field in class
 #include "../header/projectile_object.h" //Needed since its a field in class
 
+/**
+This class represents a single weapon on an AI object. It intelligently what its current position is
+based on x and y offsets from the center of its parents.
+**/
+
 class AIObject;								//Forward declaraton for AIObject to avoid circular inclusion
 class HardpointObject : public GameObject{
 	public:
-		s32 angleToTarget;
-
 		ProjectileObject* getProjectileObject();
 		bool canFire();	//Call this every update so that time since last fired can be incremented
 		void fire();	//This simply resets timeSinceLastFired
@@ -19,7 +22,7 @@ class HardpointObject : public GameObject{
 		void updateRenderOffset();	
 		void turnTowardsTarget();	//Turns hardpoint towards current target
 		u16 getFiringVelocity();
-		bool hasTarget();
+		bool hasTarget() const;
 		void setTarget(DestructableObject* target);
 
 		HardpointObject(s32 x,s32 y,u16 width,u16 height,s32 heading,SpriteInfo* si,s16 xOffset,s16 yOffset,u16 fireDelay,u16 turningSpeed,u16 maxInclination,s16 minInclination,u16 firingVelocity,ProjectileObject* po);

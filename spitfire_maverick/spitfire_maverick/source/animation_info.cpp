@@ -33,13 +33,13 @@ void AnimationInfo::tick(){
 void AnimationInfo::startAnimation(){isAnimating=true;}
 void AnimationInfo::stopAnimation(){isAnimating=false;}
 
-u16 AnimationInfo::getCurrentFrame(){
+u16 AnimationInfo::getCurrentFrame() const{
 	return currentFrame;
 }
 void AnimationInfo::setCurrentFrame(u16 frame){
 	this->currentFrame=frame;
 }
-u16 AnimationInfo::getFrameCount(){
+u16 AnimationInfo::getFrameCount() const{
 	return this->frameCount;
 }
 

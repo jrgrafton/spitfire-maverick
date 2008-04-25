@@ -20,19 +20,19 @@ AIObject::AIObject(const AIObject &object):DestructableObject(object){
 AIObject::~AIObject(){
 
 }
-AIObject::SIDE AIObject::getSide(){
+AIObject::SIDE AIObject::getSide() const{
 	return this->side;
 }
 void AIObject::setStatus(STATUS status){
 	this->status=status;
 }
-AIObject::STATUS AIObject::getStatus(){
+AIObject::STATUS AIObject::getStatus() const{
 	return this->status;
 }
-bool AIObject::getStationary(){
+bool AIObject::getStationary() const{
 	return this->stationary;
 }
-HardpointObject* AIObject::getHardpoint(){
+HardpointObject* AIObject::getHardpoint() const{
 	return this->hardpoint;
 }
 void AIObject::updateHardpoint(){
@@ -42,7 +42,7 @@ void AIObject::updateHardpoint(){
 	this->hardpoint->updateRenderOffset();
 
 }
-bool AIObject::hasTarget(){
+bool AIObject::hasTarget() const{
 	return this->hardpoint->hasTarget();
 }
 void AIObject::setTarget(DestructableObject* target){

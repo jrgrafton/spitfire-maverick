@@ -70,7 +70,7 @@ void HardpointObject::turnTowardsTarget(){
 	s32 proposedHeading = (distance<0)? InGame::wrapBigAngle(this->getHeading()-turningSpeed):InGame::wrapBigAngle(this->getHeading()+turningSpeed);
 	
 	//Are we allowed to turn to this inclination
-	s32 proposedInclination = this->angleToTarget=InGame::wrapAngleDistance(proposedHeading>>8,baseObjectAngle);
+	s32 proposedInclination = InGame::wrapAngleDistance(proposedHeading>>8,baseObjectAngle);
 	if(proposedInclination<maxInclination&&proposedInclination>minInclination){
 		this->setHeading(proposedHeading);
 		this->getSpriteInfo()->setAngle(proposedHeading);
@@ -111,7 +111,7 @@ u16 HardpointObject::getFiringVelocity(){
 	return this->firingVelocity;
 }
 
-bool HardpointObject::hasTarget(){
+bool HardpointObject::hasTarget() const{
 	return this->target!=NULL;
 }
 

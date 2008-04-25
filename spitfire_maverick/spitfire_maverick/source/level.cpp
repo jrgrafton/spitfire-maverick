@@ -12,3 +12,15 @@ Level::~Level(){
 	delete heightMap;
 	delete levelTitle;
 }
+string* Level::getTitle(){
+	return this->levelTitle;
+}
+vector<s16>* Level::getHeightMap(){
+	return this->heightMap;
+}
+u16 Level::getLevelWidth(){
+	return this->levelWidth;
+}
+u16 Level::getLevelHeight(){
+	return this->levelHeight;
+}

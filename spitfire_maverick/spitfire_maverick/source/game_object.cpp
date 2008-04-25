@@ -34,11 +34,11 @@ GameObject::~GameObject(){
 }
 
 
-s32 GameObject::getX(){
+s32 GameObject::getX() const{
 	return x;
 }
 
-s32 GameObject::getY(){
+s32 GameObject::getY() const{
 	return y;
 }
 
@@ -51,33 +51,45 @@ void GameObject::setY(s32 y){
 }
 
 
-s16 GameObject::getSpeed(){
-	return speed>>8;
+s32 GameObject::getSpeed() const{
+	return speed;
 }
 
-s32 GameObject::getHeading(){
+void GameObject::setSpeed(s32 speed){
+	this->speed=speed;
+}
+
+s32 GameObject::getHeading() const{
 	return heading;
 }
 
 void GameObject::setHeading(s32 heading){
 	this->heading=heading;
 }
-SpriteInfo* GameObject::getSpriteInfo(){
+SpriteInfo* GameObject::getSpriteInfo() const{
 	return si;
 }
 
-u16 GameObject::getObjectHeight(){
+u16 GameObject::getObjectHeight() const{
 	return (height<<8)/si->getZoom();
 }
-u16 GameObject::getObjectWidth(){
+u16 GameObject::getObjectWidth() const{
 	return (width<<8)/si->getZoom();
 }
 void GameObject::setLocation(s32 x,s32 y){
 	this->x=x;
 	this->y=y;
 }
-string* GameObject::getName(){
+string* GameObject::getName() const{
 	return this->name;
+}
+
+s16 GameObject::getVx() const{
+	return this->vx;
+}
+
+s16 GameObject::getVy() const{
+	return this->vy;
 }
 
 void GameObject::setVx(s16 vx){

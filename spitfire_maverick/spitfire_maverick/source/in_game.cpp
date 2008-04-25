@@ -103,10 +103,10 @@ InGame::~InGame(){
 	delete player;
 }
 
-inline s16 InGame::getViewPortX(){
+inline s16 InGame::getViewPortX() const{
 	return viewportx>>8;
 }
-inline s16 InGame::getViewPortY(){
+inline s16 InGame::getViewPortY() const{
 	return viewporty>>8;
 }
 /**
@@ -490,7 +490,10 @@ void InGame::initLevel(){
 	grassTiles[12][0] = 3;
 	grassTiles[12][1] = PA_CreateGfx(0, (void*)grass24a_image_Sprite, OBJ_SIZE_16X32, 1);
 	grassTiles[12][2] = PA_CreateGfx(0, (void*)grass24b_image_Sprite, OBJ_SIZE_16X32, 1);
+	
 
+	//For testing purposes atm havnt bothered doing any file reading and parsing properly yet,
+	//Wont bother doing it until game is complete.
 	#ifndef EMULATOR 
 		FILE* testRead = fopen ("/development/spitfire_maverick/test.txt", "rb"); //rb = read
 		
@@ -738,11 +741,11 @@ void InGame::initLevel(){
 		heightMap->push_back(SHEIGHT-156);
 		heightMap->push_back(SHEIGHT-156);
 
-		u16 levelWidth = (heightMap->size()-2)*16;
-		u16 levelHeight = (u16)(SHEIGHT*2);
+		u16 getLevelWidth = (heightMap->size()-2)*16;
+		u16 getLevelHeight = (u16)(SHEIGHT*2);
 	
 		//Init level with full heightmap
-		currentLevel = new Level(levelWidth,levelHeight,levelTitle,heightMap);
+		currentLevel = new Level(getLevelWidth,getLevelHeight,levelTitle,heightMap);
 
 		//Init runway
 		initRunway();
@@ -823,7 +826,7 @@ void InGame::initSound(){
 	player_gun_sfx_size[2]=(s32)fiftycal3_sfx_size;
 	player_gun_sfx_size[3]=(s32)fiftycal4_sfx_size;
 
-	PA_PlaySoundEx2(0,plane_engine_sfx,(s32)plane_engine_sfx_size,(player->getSpeed()<<8)/1109,44100,0,true,0);
+	PA_PlaySoundEx2(0,plane_engine_sfx,(s32)plane_engine_sfx_size,player->getSpeed()/1109,44100,0,true,0);
 }
 /**
 **Process height map
@@ -880,23 +883,23 @@ void InGame::run(){
 Process input function
 **/
 void InGame::processInput(void){
-	if(Pad.Held.R&&!player->onRunway){
-		if(player->canShoot()){player->timeSinceFired=0;addPlayerBullet();}
+	if(Pad.Held.R&&!player->isOnRunway()){
+		if(player->canShoot()){player->setTimeSinceFired(0);addPlayerBullet();}
 	}
-	if(Pad.Newpress.L&&!player->onRunway){
-		if(player->canBomb()){player->timeSinceBombed=0;addPlayerBomb();}
+	if(Pad.Newpress.L&&!player->isOnRunway()){
+		if(player->canBomb()){player->setTimeSinceBombed(0);addPlayerBomb();}
 	}
 	if(Pad.Held.B){
-		player->throttleOn=1;
+		player->setThrottle(true);
 	}
 	else{
-		player->throttleOn=0;
+		player->setThrottle(false);
 	}
-	if(Pad.Held.Left&&!player->onRunway){
+	if(Pad.Held.Left&&!player->isOnRunway()){
 		player->setHeading(player->getHeading()+PLANETURNSPEED);
 		if(player->getHeading()>(511<<8)){player->setHeading(0);}
 	}
-	if(Pad.Held.Right&&!player->onRunway){
+	if(Pad.Held.Right&&!player->isOnRunway()){
 		player->setHeading(player->getHeading()-PLANETURNSPEED);
 		if(player->getHeading()<0){player->setHeading(511<<8);}
 	}
@@ -910,7 +913,7 @@ void InGame::addPlayerBullet(){
 
 	SpriteInfo* planeSo = player->getSpriteInfo();
 	
-	player->totalAmmo--;
+	player->setTotalAmmo(player->getTotalAmmo()-1);
 
 	s16 componentx = PA_Cos(player->getHeading()>>8);
 	s16 componenty = -PA_Sin(player->getHeading()>>8);
@@ -923,8 +926,8 @@ void InGame::addPlayerBullet(){
 	
 	s32 heading = player->getHeading()>>8;
 
-	s16 vx = (PA_Cos(heading)*(player->speed+1000)>>8);
-	s16 vy = (-PA_Sin(heading)*(player->speed+1000)>>8)+PA_RandMax(64);
+	s16 vx = (PA_Cos(heading)*(player->getSpeed()+1000)>>8);
+	s16 vy = (-PA_Sin(heading)*(player->getSpeed()+1000)>>8)+PA_RandMax(64);
 	
 	ProjectileObject* bullet = new ProjectileObject(*projectileReferenceObjects[0]);
 	bullet->setX(startx);
@@ -938,7 +941,8 @@ void InGame::addPlayerBullet(){
 
 void InGame::addPlayerBomb(){
 	PA_PlaySound(PA_GetFreeSoundChannel(),player_bomb_sfx,(u32)player_bomb_sfx_size,127,44100);
-	player->totalBombs--;
+	player->setTotalBombs(player->getTotalBombs()-1);
+
 
 	SpriteInfo* planeSo = player->getSpriteInfo();
 
@@ -962,8 +966,8 @@ void InGame::addPlayerBomb(){
 	ProjectileObject* bomb = new ProjectileObject(*projectileReferenceObjects[1]);
 	bomb->setX(startx-((bomb->getSpriteInfo()->getSpriteWidth()/2)<<8));
 	bomb->setY(starty-((bomb->getSpriteInfo()->getSpriteHeight()/2)<<8));
-	bomb->setVx(player->vx);
-	bomb->setVy(player->vy);
+	bomb->setVx(player->getVx());
+	bomb->setVy(player->getVy());
 	bomb->setHeading(heading);
 
 	projectiles.push_back(bomb);
@@ -1013,37 +1017,37 @@ void InGame::updateAI(){
 
 void InGame::updatePlayer(){
 	//Update engine sound
-	PA_SetSoundChannelVol(0,(player->speed<<8)/1109);
+	PA_SetSoundChannelVol(0,(player->getSpeed()<<8)/1109);
 	
 	//Increase time since fired/bombed
-	player->timeSinceFired++; //Increase time since last fired
-	player->timeSinceBombed++;
+	player->setTimeSinceFired(player->getTimeSinceFired()+1);
+	player->setTimeSinceBombed(player->getTimeSinceBombed()+1);
 	
 	//Make sure heading is tied to sprite rotation
 	player->getSpriteInfo()->setAngle(player->getHeading());
 	s16 heading = player->getHeading()>>8;
 
 	//Check for takeoff
-	if(player->onRunway&&(((player->getX()>>8)+player->getObjectWidth()>runwayEnd&&heading==0)||((player->getX()>>8)<runwayStart&&heading==256))&&player->takingOff==1){
-		if(player->speed<MINPLANESPEED){playerCrash();return;}	//Crash if we have reached the end of runway and we are not fast enough
-		player->onRunway=0;
-		player->takingOff=0;
+	if(player->isOnRunway()&&(((player->getX()>>8)+player->getObjectWidth()>runwayEnd&&heading==0)||((player->getX()>>8)<runwayStart&&heading==256))&&player->getTakingOff()==1){
+		if(player->getSpeed()<MINPLANESPEED){playerCrash();return;}	//Crash if we have reached the end of runway and we are not fast enough
+		player->setOnRunway(0);
+		player->setTakingOff(0);
 		if(heading==256){player->setHeading(246<<8);}
 		else{player->setHeading(10<<8);}
 	}
 
-	s32 vy = player->vy;
-	s32 vx = player->vx;
+	s32 vy = player->getVy();
+	s32 vx = player->getVx();
 	s32 speed =0;
 	
-	if(!player->onRunway){
-		if(player->totalFuel>0)player->totalFuel--;
+	if(!player->isOnRunway()){
+		if(player->getTotalFuel()>0)player->setTotalFuel(player->getTotalFuel()-1);
 		//PROPER ALGORITHM
 		vy+=GRAVITY;
 		speed = getSpeedFromVelocity(vx,vy);//Base speed calculated from vx and vy
 
 		//Increase speed if holding up
-		if(player->totalFuel>0)speed+=player->throttleOn*PLANEPOWER;
+		if(player->getTotalFuel()>0)speed+=player->isThrottleOn()*PLANEPOWER;
 		
 		//Take off friction
 		speed*=FRICTION;
@@ -1055,30 +1059,30 @@ void InGame::updatePlayer(){
 	}
 	else{
 		//If we are on the runway the throttle is on and we are not yet taking off
-		//Make sure we are! (taking off is 1 for yes 0 for in air and -1 for landing)
-		if(player->onRunway&&player->throttleOn&&player->takingOff==0){
-			player->takingOff=1;
+		//Make sure we are! (taking off is 1,0 for in air and -1 for landing)
+		if(player->isOnRunway()&&player->isThrottleOn()&&player->getTakingOff()==0){
+			player->setTakingOff(1);
 		}
 		speed = getSpeedFromVelocity(vx,vy);//Base speed calculated from vx and vy
-		if(!player->throttleOn&&player->takingOff){player->throttleOn=1;} //Throttle always on when taking off
-		speed+=player->throttleOn*PLANEPOWER*player->takingOff;
+		if(!player->isThrottleOn()&&player->getTakingOff()==1){player->setThrottle(1);} //Throttle always on when taking off
+		speed+=player->isThrottleOn()*PLANEPOWER*player->getTakingOff();
 		
 		//Check for end of runway
-		if(player->takingOff==-1&&player->speed>0&&((player->getX()>>8)+player->getObjectWidth()>runwayEnd||(player->getX()>>8)<runwayStart)){
+		if(player->getTakingOff()==-1&&player->getSpeed()>0&&((player->getX()>>8)+player->getObjectWidth()>runwayEnd||(player->getX()>>8)<runwayStart)){
 			playerCrash();
 		}
 
 		//Do a refeuling here turning around etc if landing
-		if(speed<=0&&player->takingOff==-1){
+		if(speed<=0&&player->getTakingOff()==-1){
 			speed=0;
-			player->takingOff=0;
+			player->setTakingOff(0);
 			player->restock();
 			//Flip planes current facing
 			if(heading>128&&heading<384){player->setHeading(0);}
 			else{player->setHeading(256<<8);}
 		}
 		//Make sure we dont exceed min speed when taking off
-		if(speed>MINPLANESPEED&&player->takingOff==1){speed=MINPLANESPEED;}
+		if(speed>MINPLANESPEED&&player->getTakingOff()==1){speed=MINPLANESPEED;}
 	}
 	
 	//Possibly add some smoke
@@ -1086,8 +1090,8 @@ void InGame::updatePlayer(){
 	if(player->getTimeSinceLastSmoked()>player->getSmokingInterval()&&player->getHealth()<50){
 		ParticleObject* po = new ParticleObject(*(particleReferenceObjects[1]));
 		SpriteInfo* si = po->getSpriteInfo();
-		po->vy=15+PA_RandMax(15); //WTF HEAVY SMOKE?
-		po->vx=player->vx/7;
+		po->setVy(15+PA_RandMax(15)); //WTF HEAVY SMOKE?
+		po->setVx(player->getVx()/7);
 		s32 cx = player->getX()+((player->getSpriteInfo()->getSpriteWidth()/2)<<8);
 		s32 cy = player->getY()+((player->getSpriteInfo()->getSpriteHeight()/2)<<8);
 		
@@ -1105,28 +1109,28 @@ void InGame::updatePlayer(){
 	}
 
 	//Recalculate xv and yv
-	if(player->totalFuel>0){
-		player->vx = (PA_Cos(heading)*speed)>>8;
-		player->vy = (-PA_Sin(heading)*speed)>>8;
+	if(player->getTotalFuel()>0){
+		player->setVx((PA_Cos(heading)*speed)>>8);
+		player->setVy((-PA_Sin(heading)*speed)>>8);
 	}
 	else{
-		if(player->vx>0)player->vx--;
-		if(player->vy<MAXPLANESPEED)player->vy+=GRAVITY;
-		player->setHeading(PA_GetAngle(player->getX(),player->getY(),player->getX()+player->vx,player->getY()+player->vy)<<8);
+		if(player->getVx()>0)player->setVx(player->getVx()-1);
+		if(player->getVy()<MAXPLANESPEED)player->setVy(player->getVy()+GRAVITY);
+		player->setHeading(PA_GetAngle(player->getX(),player->getY(),player->getX()+player->getVx(),player->getY()+player->getVy())<<8);
 	}	//Hurtle towards earth if no fuel
 	
-	player->setX(player->getX()+player->vx);
-	player->setY(player->getY()+player->vy);
-	player->speed=speed;
+	player->setX(player->getX()+player->getVx());
+	player->setY(player->getY()+player->getVy());
+	player->setSpeed(speed);
 
 	u16 contactingRunway = ((player->getX()>>8)>runwayStart&&(player->getX()>>8)<runwayEnd)&&collideObject(player,&InGame::rotatedRectangleCollision,true,false,false,false,false);
 
 	//If plane is currently in the air and is contacting the runway
-	if((player->takingOff==0&&contactingRunway)){
+	if((player->getTakingOff()==0&&contactingRunway)){
 		if((heading>255&&heading<281)||(heading>486)){
-			if(player->speed>MINPLANESPEED+100){playerCrash();return;}//Need to be going at slowly to land
-			player->takingOff=-1;
-			player->onRunway=1;
+			if(player->getSpeed()>MINPLANESPEED+100){playerCrash();return;}//Need to be going at slowly to land
+			player->setTakingOff(-1);
+			player->setOnRunway(1);
 			player->setY((runwayHeight+12)<<8);
 			if(heading>128&&heading<384){player->setHeading(256<<8);}
 			else{player->setHeading(0);}
@@ -1137,7 +1141,7 @@ void InGame::updatePlayer(){
 	}
 
 	//If the plane is going to be completely rendered above the y threshold reflect its current angle
-	if((player->getY()>>8)<(SHEIGHT-currentLevel->levelHeight)-50){
+	if((player->getY()>>8)<(SHEIGHT-currentLevel->getLevelHeight())-50){
 		player->setHeading(reflectOverNormal(player->getHeading()>>8,384)<<8);
 	}
 
@@ -1146,10 +1150,10 @@ void InGame::updatePlayer(){
 		player->setHeading(reflectOverNormal(player->getHeading()>>8,0)<<8);
 	}
 
-	else if((player->getX()>>8)>currentLevel->levelWidth+5){
+	else if((player->getX()>>8)>currentLevel->getLevelWidth()+5){
 		player->setHeading(reflectOverNormal(player->getHeading()>>8,256)<<8);
 	}
-	if(player->takingOff==0&&!contactingRunway){playerCollisions();}
+	if(player->getTakingOff()==0&&!contactingRunway){playerCollisions();}
 }
 
 void InGame::playerCollisions(){
@@ -1178,8 +1182,8 @@ void InGame::addParticlesFromObject(DestructableObject* destructable){
 		s16 rotSpeed = PA_RandMinMax(1400,2800);
 		if(PA_RandMax(1)){rotSpeed = 0-rotSpeed;}
 	
-		s16 particleVx = (destructable->vx==0)?PA_RandMax(256)-256:destructable->vx;
-		s16 particleVy = (destructable->vy==0)?PA_RandMax(256)-256:destructable->vy;
+		s16 particleVx = (destructable->getVx()==0)?PA_RandMax(256)-256:destructable->getVx();
+		s16 particleVy = (destructable->getVy()==0)?PA_RandMax(256)-256:destructable->getVy();
 		
 		po->setX(startx);
 		po->setY(starty);
@@ -1233,7 +1237,7 @@ and go2 represents rect bounding box
 @go2 => Represents bounding box
 
 **/
-bool InGame::pointInRectangleCollision(GameObject* go1,GameObject* go2){
+bool InGame::pointInRectangleCollision(GameObject* go1,GameObject* go2) const{
 	s16 pointx = go1->getX()>>8;
 	s16 pointy = go1->getY()>>8;
 
@@ -1259,7 +1263,7 @@ works by getting closest corner and doing squared distance to center of circle.
 @go1 => circle object...object width is taken as explosion radius
 @go2 => rect object 
 **/
-bool InGame::circleAndRectangleCollision(GameObject* go1,GameObject* go2){
+bool InGame::circleAndRectangleCollision(GameObject* go1,GameObject* go2) const{
 	SpriteInfo* si = go2->getSpriteInfo();
 	s16 x0 = ((go2->getX()>>8)+(si->getSpriteWidth()/2)) -go2->getObjectWidth()/2;
 	s16 y0 = ((go2->getY()>>8)+(si->getSpriteHeight()/2)) -go2->getObjectHeight()/2;
@@ -1288,19 +1292,19 @@ void InGame::updateViewport(){
 	
 	//Viewport calculations using simulated float accuracy
 	s16 xComponent = PA_Cos(heading);
-	u16 adjust = (player->getSpeed()<MINPLANESPEED)? player->getSpeed():MINPLANESPEED;
-	viewportx = player->getX()+(16<<8)-((SWIDTH/2)<<8)+((player->vx)*40)-((xComponent*((adjust)*40))>>8);
+	u16 adjust = ((player->getSpeed()>>8)<MINPLANESPEED)? (player->getSpeed()>>8):MINPLANESPEED;
+	viewportx = player->getX()+(16<<8)-((SWIDTH/2)<<8)+((player->getVx())*40)-((xComponent*((adjust)*40))>>8);
 	viewporty = player->getY()-((SHEIGHT/2)<<8);
 
 	if(getViewPortX()<0){viewportx=0;}
-	if(getViewPortX()+SWIDTH>currentLevel->levelWidth){viewportx=((currentLevel->levelWidth-SWIDTH)<<8);}
+	if(getViewPortX()+SWIDTH>currentLevel->getLevelWidth()){viewportx=((currentLevel->getLevelWidth()-SWIDTH)<<8);}
 
-	if(getViewPortY()<SHEIGHT-currentLevel->levelHeight){viewporty=((SHEIGHT-currentLevel->levelHeight)<<8);}
+	if(getViewPortY()<SHEIGHT-currentLevel->getLevelHeight()){viewporty=((SHEIGHT-currentLevel->getLevelHeight())<<8);}
 	if(getViewPortY()>0){viewporty=0;}
 	
 	//Scroll background
-	if(getViewPortX()>0&&getViewPortX()+SWIDTH<currentLevel->levelWidth&&!player->getDestroyed()){
-		bgscroll+=(((abs(player->vx)*(player->speed)>>8))/7*xflipped);
+	if(getViewPortX()>0&&getViewPortX()+SWIDTH<currentLevel->getLevelWidth()&&!player->getDestroyed()){
+		bgscroll+=(((abs(player->getVx())*(player->getSpeed())>>8))/7*xflipped);
 		PA_BGScrollX(0,2,bgscroll>>8);
 	}
 }
@@ -1320,7 +1324,7 @@ Params:
 @ai => Does this object collide with the AI
 **/
 
-bool InGame::collideObject(GameObject* go,bool (InGame::* collisionRoutine) (GameObject* go1,GameObject* go2),bool landscape,bool landscapeObj,bool player,bool ai, bool reflect){
+bool InGame::collideObject(GameObject* go,bool (InGame::* collisionRoutine) (GameObject* go1,GameObject* go2) const,bool landscape,bool landscapeObj,bool player,bool ai, bool reflect){
 	bool collision = false;
 
 	if(landscape){
@@ -1383,7 +1387,7 @@ bool InGame::landscapeCollision(GameObject* go,bool reflect){
 
 	//If object is to be reflected move it out of landscape and reflect.
 	if(collision&&reflect){
-		u16 headingAngle =  PA_GetAngle(go->getX(),go->getY(), go->getX()+go->vx,go->getY()+go->vy);
+		u16 headingAngle =  PA_GetAngle(go->getX(),go->getY(), go->getX()+go->getVx(),go->getY()+go->getVy());
 
 		//Make sure object is moved out of scenery...Should really translate back along
 		//normal however its faster and easier to translate str8 up.
@@ -1391,13 +1395,13 @@ bool InGame::landscapeCollision(GameObject* go,bool reflect){
 
 		//Figure out reflection angle and apply it to current velocity
 		u16 reflectAngle = reflectOverNormal(headingAngle,getNormalAtPoint(collisionx>>8));
-		u16 currentSpeed=getSpeedFromVelocity(go->vx,go->vy);
-		go->vx=((currentSpeed*PA_Cos(reflectAngle))>>8);
-		go->vy=((currentSpeed*-PA_Sin(reflectAngle))>>8);
+		u16 currentSpeed=getSpeedFromVelocity(go->getVx(),go->getVy());
+		go->setVx(((currentSpeed*PA_Cos(reflectAngle))>>8));
+		go->setVy(((currentSpeed*-PA_Sin(reflectAngle))>>8));
 		
 		//For each collision slow down veclocity	
-		go->vx=(go->vx*180)>>8;
-		go->vy=(go->vy*180)>>8;
+		go->setVx((go->getVx()*180)>>8);
+		go->setVy((go->getVy()*180)>>8);
 
 		//If we are dealing with a particle slow down rotation speed
 		ParticleObject* po = dynamic_cast<ParticleObject*>(go);
@@ -1408,11 +1412,11 @@ bool InGame::landscapeCollision(GameObject* go,bool reflect){
 	return collision;
 }
 
-bool InGame::landscapePointCollision(s16 x, s16 y){
+bool InGame::landscapePointCollision(s16 x, s16 y) const{
 	return(y>getHeightAtPoint(x));
 }
 
-bool InGame::landscapeObjectCollision(GameObject * go,bool (InGame::* collisionRoutine) (GameObject* go1,GameObject* go2)){
+bool InGame::landscapeObjectCollision(GameObject * go,bool (InGame::* collisionRoutine) (GameObject* go1,GameObject* go2)const){
 	bool collision = false;
 	
 	u16 objectStrength = numeric_limits<u16>::max();
@@ -1448,7 +1452,7 @@ bool InGame::landscapeObjectCollision(GameObject * go,bool (InGame::* collisionR
 	return collision;
 }
 
-bool InGame::AIObjectCollision(GameObject * go,bool (InGame::* collisionRoutine) (GameObject* go1,GameObject* go2)){
+bool InGame::AIObjectCollision(GameObject * go,bool (InGame::* collisionRoutine) (GameObject* go1,GameObject* go2)const){
 	bool collision = false;
 
 	u16 objectStrength = numeric_limits<u16>::max();
@@ -1488,7 +1492,7 @@ bool InGame::AIObjectCollision(GameObject * go,bool (InGame::* collisionRoutine)
 /**
 Gets the 4 vertices of a game object, sets them using <<8 position
 **/
-void InGame::getVertices(GameObject* go,s32 *v0,s32 *v1,s32 *v2,s32 *v3){
+void InGame::getVertices(GameObject* go,s32 *v0,s32 *v1,s32 *v2,s32 *v3) const{
 	SpriteInfo* si = go->getSpriteInfo();
 	
 	s32 cx = go->getX()+((si->getSpriteWidth()/2)<<8);
@@ -1549,7 +1553,7 @@ rect intersect with any lines of the other, as soon as we find a single intersec
 there must be a collision!. Optimized by doing a quick circle bounds check first.
 **/
 
-bool InGame::rotatedRectangleCollision(GameObject * go1,GameObject* go2){
+bool InGame::rotatedRectangleCollision(GameObject * go1,GameObject* go2) const{
 
 	//First make sure that they r close enuf to collide
 	s32 go1cx = (go1->getX()>>8)+go1->getSpriteInfo()->getSpriteWidth()/2;
@@ -1591,7 +1595,7 @@ bool InGame::rotatedRectangleCollision(GameObject * go1,GameObject* go2){
 	return false;
 }
 
-void InGame::getLinesForRectangle(GameObject* go,Line* lines){
+void InGame::getLinesForRectangle(GameObject* go,Line* lines) const{
 	s32 v0[2];
 	s32 v1[2];
 	s32 v2[2];
@@ -1616,7 +1620,7 @@ void InGame::getLinesForRectangle(GameObject* go,Line* lines){
 	lines[3].p = Vector2D(v0[0]>>8,v0[1]>>8);
 }
 
-bool InGame::LineIntersect( Line &a, Line &b){
+bool InGame::LineIntersect( Line &a, Line &b) const{
 	s32 x1 = a.o.x;
 	s32 y1 = a.o.y;
 	s32 x2 = a.p.x;
@@ -1648,10 +1652,10 @@ void InGame::updateProjectiles(){
 	while( it != projectiles.end()) {
 		ProjectileObject* projectile = (ProjectileObject*)(*it);
 		
-		projectile->vy+=GRAVITY;
+		projectile->setVy(projectile->getVy()+GRAVITY);
 		
-		projectile->setX(projectile->getX()+projectile->vx);
-		projectile->setY(projectile->getY()+projectile->vy);
+		projectile->setX(projectile->getX()+projectile->getVx());
+		projectile->setY(projectile->getY()+projectile->getVy());
 		
 		//Need to modify this to find bottom middle of projectile
 		s32 px = (projectile->getX()>>8);
@@ -1662,8 +1666,8 @@ void InGame::updateProjectiles(){
 			getMiddleEndOfObject((GameObject*)projectile,px,py,1);
 		}
 
-		s16 vx = projectile->vx;
-		s16 vy = projectile->vy;
+		s16 vx = projectile->getVx();
+		s16 vy = projectile->getVy();
 		s16 ttl = projectile->getTtl();
 		
 		//Make sure we calculate current heading and turn to face it
@@ -1672,7 +1676,7 @@ void InGame::updateProjectiles(){
 		projectile->getSpriteInfo()->setAngle(currentHeading<<8);
 		
 		//Simple out of level check
-		if(px>currentLevel->levelWidth||px<0||py<0-(currentLevel->levelHeight-SHEIGHT)){
+		if(px>currentLevel->getLevelWidth()||px<0||py<0-(currentLevel->getLevelHeight()-SHEIGHT)){
 			it=projectiles.erase(it);
 			continue;
 		}
@@ -1763,12 +1767,12 @@ void InGame::updateParticles(){
 		po->setTtl(po->getTtl()-1);
 		SpriteInfo* si = po->getSpriteInfo();
 		si->setAngle(wrapBigAngle(si->getAngle()+po->getRotSpeed()));
-		po->setX(po->getX()+po->vx);
-		po->setY(po->getY()+po->vy);
-		if((po->getX()>>8)>0&&(po->getX()>>8)<currentLevel->levelWidth){
+		po->setX(po->getX()+po->getVx());
+		po->setY(po->getY()+po->getVy());
+		if((po->getX()>>8)>0&&(po->getX()>>8)<currentLevel->getLevelWidth()){
 			if(po->isHeavy()){
-				if(!collideObject(po,&InGame::rotatedRectangleCollision,true,false,false,false,true)){
-					po->vy+=GRAVITY;
+				if(!collideObject((GameObject*)po,&InGame::rotatedRectangleCollision,true,false,false,false,true)){
+					po->setVy(po->getVy()+GRAVITY);
 				}
 			}
 		}
@@ -1934,7 +1938,10 @@ void InGame::drawAI(){
 	}
 }
 
-
+/**
+Draw object function which allows automatic resource aquisition
+and release for game objects via 2D culling
+**/
 void InGame::drawObject(GameObject* go){
 		//Do dynamic allocation/deallocation of sprite indexes and rot indexes
 		s16 finalx = (go->getX()>>8)-getViewPortX();
@@ -2019,11 +2026,11 @@ void InGame::drawLandscapeTiles(){
 	resetLandscape();
 
 	vector<s16>::iterator it;
-	it = currentLevel->heightMap->begin();
+	it = currentLevel->getHeightMap()->begin();
 
 
 	s16 x =0-getViewPortX();
-	while( it != currentLevel->heightMap->end()-1) {
+	while( it != currentLevel->getHeightMap()->end()-1) {
 		u16 thisHeight = (*it);
 		u16 nextHeight = (*(it+1));
 		u8 spriteIndex = abs(thisHeight-nextHeight)/2;
@@ -2080,21 +2087,21 @@ void InGame::resetLandscape(){
 /**
 ** inline lower function
 **/
-u16 InGame::lowest(u16 a,u16 b){
+u16 InGame::lowest(u16 a,u16 b) const{
 	return(a<b)? a:b;
 }
 
 /**
 ** inline smaller function
 **/
-u16 InGame::highest(u16 a,u16 b){
+u16 InGame::highest(u16 a,u16 b) const{
 	return(a>b)? a:b;
 }
 
 /**
 Utility function, bottom front of planes are used for collisions
 **/
-void InGame::getBottomEndOfObject(GameObject* go,s32 &x,s32 &y,s16 direction){
+void InGame::getBottomEndOfObject(GameObject* go,s32 &x,s32 &y,s16 direction) const{
 	SpriteInfo* si = go->getSpriteInfo();
 	u16 radius = go->getObjectWidth()/2;
 
@@ -2121,7 +2128,7 @@ void InGame::getBottomEndOfObject(GameObject* go,s32 &x,s32 &y,s16 direction){
 /**
 Utility function, middle front or back of game objects (currently used for projectile bombs)
 **/
-void InGame::getMiddleEndOfObject(GameObject* go,s32 &x,s32 &y,s16 direction){
+void InGame::getMiddleEndOfObject(GameObject* go,s32 &x,s32 &y,s16 direction) const{
 	SpriteInfo* si = go->getSpriteInfo();
 	u16 radius = go->getObjectWidth()/2;
 
@@ -2138,11 +2145,11 @@ void InGame::getMiddleEndOfObject(GameObject* go,s32 &x,s32 &y,s16 direction){
 /**
 Note this uses shifted position for y 
 **/
-u16 InGame::getHeightAtPoint(u16 x){
+u16 InGame::getHeightAtPoint(u16 x) const{
 	s16 landIndex = (x/16);
-	if((u16)landIndex>currentLevel->heightMap->size()-2||landIndex<0){return SHEIGHT;}
-	u32 a = currentLevel->heightMap->at(landIndex)<<8;
-	u32 b = currentLevel->heightMap->at(landIndex+1)<<8;
+	if((u16)landIndex>currentLevel->getHeightMap()->size()-2||landIndex<0){return SHEIGHT;}
+	u32 a = currentLevel->getHeightMap()->at(landIndex)<<8;
+	u32 b = currentLevel->getHeightMap()->at(landIndex+1)<<8;
 	
 	u32 diff = ((x &15)<<8)/16;
 	u16 actualHeight = (a+(diff*((b-a)>>8)))>>8;	
@@ -2150,10 +2157,10 @@ u16 InGame::getHeightAtPoint(u16 x){
 	return actualHeight;
 }
 
-u16 InGame::getNormalAtPoint(u16 x){
+u16 InGame::getNormalAtPoint(u16 x) const{
 	s16 landIndex = (x/16);
-	u32 a = currentLevel->heightMap->at(landIndex);
-	u32 b = currentLevel->heightMap->at(landIndex+1);
+	u32 a = currentLevel->getHeightMap()->at(landIndex);
+	u32 b = currentLevel->getHeightMap()->at(landIndex+1);
 
 	u16 angle = PA_GetAngle(x,a,x+16,b);
 	
@@ -2161,7 +2168,7 @@ u16 InGame::getNormalAtPoint(u16 x){
 	return (a>b)? wrapAngle(angle+128):wrapAngle(angle-128);
 }
 
-u16 InGame::reflectOverNormal(u16 angle,u16 normal){
+u16 InGame::reflectOverNormal(u16 angle,u16 normal) const{
 	//First get the reflected angle
 	u16 reflected = flipAngle(angle);
 	s16 normalDiff = wrapAngleDistance(normal,reflected);
@@ -2186,13 +2193,13 @@ void InGame::playerCrash(){
 	u16 plane_gfx = player->getSpriteInfo()->getGfxRef();
 	player->destructObject();
 	PA_SetSpriteY(0, 0, 193);	// Hide sprite
-	planeCrashParticles();
+	playerCrashParticles();
 	delete player;
 	SpriteInfo* si = new SpriteInfo(32,32,0,plane_gfx,0,0,0,OBJ_SIZE_32X32,256,0,2,true,true,false);
 	player = new PlayerObject(runwayStart<<8,(runwayHeight+12)<<8,16,8,0,0,0,9,60,si,new ParticleObject(*particleReferenceObjects[4]));
 	scrollBackToRunway();
 }
-void InGame::planeCrashParticles(){
+void InGame::playerCrashParticles(){
 	//Add particles from object 
 	addParticlesFromObject(player);
 
@@ -2216,9 +2223,9 @@ void InGame::planeCrashParticles(){
 
 void InGame::scrollBackToRunway(){
 	s16 xComponent = PA_Cos(player->getHeading()>>8);
-	u16 adjust = (player->getSpeed()<MINPLANESPEED)? player->getSpeed():MINPLANESPEED;
+	u16 adjust = ((player->getSpeed()>>8)<MINPLANESPEED)? (player->getSpeed()>>8):MINPLANESPEED;
 
-	s32 targetviewportx = player->getX()+(16<<8)-((SWIDTH/2)<<8)+((player->vx)*40)-((xComponent*((adjust)*40))>>8);
+	s32 targetviewportx = player->getX()+(16<<8)-((SWIDTH/2)<<8)+((player->getVx())*40)-((xComponent*((adjust)*40))>>8);
 	s32 targetviewporty = player->getY()-((SHEIGHT/2)<<8);
 	if(targetviewporty>0){targetviewporty=0;}
 	if(targetviewportx<0){targetviewportx=0;}
@@ -2241,25 +2248,20 @@ void InGame::scrollBackToRunway(){
 /**
 ** Inline squared function
 **/
-inline u32 InGame::squared(s32 a){ return a*a;}
+inline u32 InGame::squared(s32 a) const{ return a*a;}
 
 /**
 Debug function, put everything here that you
 wanna print to screen
 **/
-void InGame::print_debug(void){
+void InGame::print_debug(void) const{
 	//Put your debug print statements here.... make sure to print to screen 1	
 	PA_ClearTextBg(1);
-	//PA_OutputText(1,0, 0, "Title is: %s", currentLevel->levelTitle->c_str());
-	//PA_OutputText(1,0, 1, "Viewport x:%d y:%d", getViewPortX(),getViewPortY());
-	//PA_OutputText(1,0, 2, "Plane x:%d y:%d", player->getX()>>8,player->getY()>>8);
-	//PA_OutputText(1,0, 3, "Plane vx:%d vy:%d", player->vx,player->vy);
-	//PA_OutputText(1,0, 4, "Landscape sprites used:%d", landscapeIndexs.size());
-	//PA_OutputText(1,0, 5, "Available sprites:%d", spritePool.size());
-	//PA_OutputText(1,0, 6, "Plane taking off:%d", player->takingOff);
-	//PA_OutputText(1,0, 7, "Particle count:%d", particles.size());
-	//PA_OutputText(1,0, 8, "Projectile count:%d", projectiles.size());
-	//PA_OutputText(1,0, 9,"Rot pool size:%d", rotPool.size());
-	//PA_OutputText(1,0, 10,"Bombs: %d Ammo: %d Fuel: %d Health %d",player->totalBombs,player->totalAmmo,player->totalFuel,player->getHealth());
-	//PA_OutputText(1,0, 13,"AI target test :%d", AIObjects.at(0)->getHardpoint()->angleToTarget);
+	PA_OutputText(1,0, 0, "Title is: %s", currentLevel->getTitle()->c_str());
+	PA_OutputText(1,0, 1, "Landscape sprites used:%d", landscapeIndexs.size());
+	PA_OutputText(1,0, 2, "Available sprites:%d", spritePool.size());
+	PA_OutputText(1,0, 3, "Particle count:%d", particles.size());
+	PA_OutputText(1,0, 4, "Projectile count:%d", projectiles.size());
+	PA_OutputText(1,0, 5,"Rot pool size:%d", rotPool.size());
+	PA_OutputText(1,0, 6,"Bombs: %d Ammo: %d Fuel: %d Health %d",player->getTotalBombs(),player->getTotalAmmo(),player->getTotalFuel(),player->getHealth());
 }

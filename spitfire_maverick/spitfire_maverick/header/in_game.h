@@ -6,6 +6,11 @@
 #include "../header/destructable_object.h"
 #include "../header/projectile_object.h"
 
+/**
+Class representing main game state. Ideally some more modularization is required which
+would allow for the creation of physics and rendering classes.
+**/
+
 //Just used for rotated rectangle collision...didnt wanna bother with two extra
 //files just for this function
 class Vector2D {
@@ -102,26 +107,27 @@ class InGame : public State{
 		void updateAI();
 		
 		/**--------------------------------Collision functions--------------------------------**/
-		bool collideObject(GameObject* go,bool (InGame::* collisionRoutine) (GameObject* go1,GameObject* go2),bool landscape,bool landscapeObj,bool player,bool ai,bool reflect);
+		bool collideObject(GameObject* go,bool (InGame::* collisionRoutine) (GameObject* go1,GameObject* go2) const,bool landscape,bool landscapeObj,bool player,bool ai,bool reflect);
 		bool landscapeCollision(GameObject * go,bool reflect);
-		bool landscapePointCollision(s16 x,s16 y);
-		bool landscapeObjectCollision(GameObject * go,bool (InGame::* collisionRoutine) (GameObject* go1,GameObject* go2));
-		bool AIObjectCollision(GameObject * go,bool (InGame::* collisionRoutine) (GameObject* go1,GameObject* go2));
+		bool landscapePointCollision(s16 x,s16 y) const;
+		bool landscapeObjectCollision(GameObject * go,bool (InGame::* collisionRoutine) (GameObject* go1,GameObject* go2)const);
+		bool AIObjectCollision(GameObject * go,bool (InGame::* collisionRoutine) (GameObject* go1,GameObject* go2)const);
 		
-		bool pointInRectangleCollision(GameObject* go1,GameObject* go2);
-		bool circleAndRectangleCollision(GameObject* go1,GameObject* go2);
-		bool rotatedRectangleCollision(GameObject* go1,GameObject* go2);
-		bool LineIntersect( Line &a, Line &b);
-		void getLinesForRectangle(GameObject* go,Line* lines);
-		void getVertices(GameObject* go,s32 *v0,s32 *v1,s32 *v2,s32 *v3);
-		void getBottomEndOfObject(GameObject* go,s32 &frontx,s32 &fronty,s16 direction);
-		void getMiddleEndOfObject(GameObject* go,s32 &frontx,s32 &fronty,s16 direction);
+		bool pointInRectangleCollision(GameObject* go1,GameObject* go2) const;
+		bool circleAndRectangleCollision(GameObject* go1,GameObject* go2) const;
+		bool rotatedRectangleCollision(GameObject* go1,GameObject* go2) const;
+		bool LineIntersect( Line &a, Line &b) const;
+		
+		void getLinesForRectangle(GameObject* go,Line* lines) const;
+		void getVertices(GameObject* go,s32 *v0,s32 *v1,s32 *v2,s32 *v3) const;
+		void getBottomEndOfObject(GameObject* go,s32 &frontx,s32 &fronty,s16 direction) const;
+		void getMiddleEndOfObject(GameObject* go,s32 &frontx,s32 &fronty,s16 direction) const;
 		void releaseObjectResources(GameObject* go);		//Whenever we delete a gameObject make sure it releases its rot and sprite index
 		
 		//Player has special crash functions for camera tracking particles and scrolling back to runway
 		void playerCollisions();
 		void playerCrash();
-		void planeCrashParticles();
+		void playerCrashParticles();
 		void scrollBackToRunway();
 		
 		//Called when destructable object explodes
@@ -131,14 +137,14 @@ class InGame : public State{
 		void addExplosionAnimationFromProjectile(ProjectileObject* projctile);
 		
 		/**--------------------------------Util functions--------------------------------**/
-		inline u16 lowest(u16 a,u16 b);
-		inline u16 highest(u16 a,u16 b);
-		inline u32 squared(s32 a);
-		u16 getHeightAtPoint(u16 x);
-		u16 getNormalAtPoint(u16 x);
-		u16 reflectOverNormal(u16 angle,u16 normal);
-		inline s16 getViewPortX();
-		inline s16 getViewPortY();
+		inline u16 lowest(u16 a,u16 b) const;
+		inline u16 highest(u16 a,u16 b) const;
+		inline u32 squared(s32 a) const;
+		u16 getHeightAtPoint(u16 x) const;
+		u16 getNormalAtPoint(u16 x) const;
+		u16 reflectOverNormal(u16 angle,u16 normal) const;
+		inline s16 getViewPortX() const;
+		inline s16 getViewPortY() const;
 
 		//Input driven functions
 		void processInput();
@@ -146,6 +152,6 @@ class InGame : public State{
 		void addPlayerBomb();
 		
 		//Other functions
-		void print_debug(void);
+		void print_debug(void) const;
 };
 #endif

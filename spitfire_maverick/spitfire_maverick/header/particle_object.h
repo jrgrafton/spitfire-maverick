@@ -6,7 +6,6 @@ class ParticleObject : public GameObject{
 		
 		void setRotSpeed(s16 rotSpeed);
 		s16 getRotSpeed();
-
 		bool isHeavy();
 		s16 getTtl();
 		void setTtl(s16 ttl);

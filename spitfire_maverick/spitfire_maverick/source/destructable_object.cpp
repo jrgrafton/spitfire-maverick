@@ -28,18 +28,18 @@ void DestructableObject::destructObject(){
 	this->objectDestroyed=true;
 }
 
-s32 DestructableObject::getHealth(){
+s32 DestructableObject::getHealth() const{
 	return health;
 }
 void DestructableObject::setHealth(s32 health){
 	this->health=health;
 }
-u16 DestructableObject::getParticleCount(){
+u16 DestructableObject::getParticleCount() const{
 	return particleCount;
 }
-ParticleObject* DestructableObject::getParticleSpriteInstance(){
+ParticleObject* DestructableObject::getParticleSpriteInstance() const{
 	return particleSpriteInstance;
 }
-bool DestructableObject::getDestroyed(){
+bool DestructableObject::getDestroyed() const{
 	return objectDestroyed;
 }
