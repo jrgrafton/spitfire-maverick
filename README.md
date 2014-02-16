@@ -1,7 +1,7 @@
 Spitfire Maverick
 =================
 
-Simple 2D side scroller proof of concept written in 2008 and compatible with:
+Simple 2D side scroller proof of concept written in 2008 for the:
 * Nintendo DS
 * Gameboy Advance
 
